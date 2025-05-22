@@ -91,3 +91,27 @@ export interface ProjectChallengeCardProps {
 }
 
 export type ProjectSlugParams = { slug: string };
+
+/**
+ * Project data model for dashboard and API usage.
+ * Matches the IProject interface from the Mongoose model.
+ * @see /models/Project.ts
+ */
+export interface Project {
+  _id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  content: string;
+  technologies: string[];
+  tags: string[];
+  images: string[];
+  coverImage?: string;
+  demoUrl?: string;
+  sourceUrl?: string;
+  publishedAt: string; // ISO string for consistency
+  updatedAt: string; // ISO string for consistency
+  featured: boolean;
+  status: "draft" | "published" | "archived";
+  metadata?: Record<string, unknown>;
+}

@@ -1,4 +1,5 @@
 // components/MDXLivePreview.tsx
+"use client";
 import React, { useEffect, useState } from "react";
 import { MDXProvider } from "@mdx-js/react";
 import { evaluate } from "@mdx-js/mdx";

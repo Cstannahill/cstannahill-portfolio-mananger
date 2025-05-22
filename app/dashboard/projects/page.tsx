@@ -200,9 +200,14 @@ export default function ProjectsPage() {
                           {new Date(project.publishedAt).toLocaleDateString()}
                         </span>
                         <div className="flex gap-2">
-                          <Link href={`/dashboard/projects/${project.slug}`}>
+                          <Link href={`/projects/${project.slug}`}>
                             <Button variant="ghost" size="sm">
                               View
+                            </Button>
+                          </Link>
+                          <Link href={`/dashboard/projects/${project.slug}`}>
+                            <Button variant="secondary" size="sm">
+                              Manage
                             </Button>
                           </Link>
                           <Link
