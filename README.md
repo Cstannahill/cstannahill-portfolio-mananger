@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portfolio Manager Dashboard
+
+A comprehensive dashboard application for managing, tracking, and visualizing your personal portfolio projects with ease.
 
 ## Getting Started
 
-First, run the development server:
+This project uses Next.js, React, and MongoDB to provide a powerful portfolio management experience.
+
+### Prerequisites
+
+- Node.js 18+
+- npm
+- Docker and Docker Compose (for containerized development)
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up your environment variables by creating a `.env.local` file:
+   ```
+   MONGODB_URI=mongodb://admin:password@localhost:27017/portfolio?authSource=admin
+   NEXTAUTH_SECRET=your-development-secret
+   NEXTAUTH_URL=http://localhost:3000
+   ```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+Or use Docker for development:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Start MongoDB and the app using Docker Compose
+./dev.sh
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This project follows a modular architecture with:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js App Router for routing and API routes
+- React components with TypeScript
+- MongoDB for data storage using Mongoose
+- Tailwind CSS and shadcn/ui for styling
+- Jest for testing
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
+For detailed documentation, please refer to:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Setup Guide](./docs/user-guides/setup-guide.md) - Step-by-step setup instructions
+- [Project Progress](./docs/project-progress-updated.md) - Current status and next steps
+- [Documentation Guide](./docs/documentation-guide.md) - Overview of all available documentation
+- [Technical Requirements](./docs/technical-requirements.md) - Project requirements and constraints
+- [Architecture Overview](./docs/architecture/overview.md) - System design and architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Features
 
-## Deploy on Vercel
+- **Portfolio Overview**: Consolidated view of all projects and content
+- **Project Management**: Track and update project status, features, and metadata
+- **Content Analytics**: Measure engagement and growth of your portfolio content
+- **Performance Tracking**: Historical performance analysis with visual charts
+- **Technology Tracking**: Visual breakdown of technologies and skills across projects
+- **Content Management**: Streamlined interface for creating and editing MDX content
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Development Status
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is in active development. For the latest status, see [Project Progress](./docs/project-progress-updated.md).
+
+## License
+
+[MIT](LICENSE)

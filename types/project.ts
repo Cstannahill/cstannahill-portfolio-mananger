@@ -1,0 +1,93 @@
+/**
+ * Project-related types and interfaces for MDX components and data models.
+ * @module types/project
+ */
+
+/**
+ * Technology used in a project.
+ */
+export interface Technology {
+  name: string;
+  icon?: string;
+  role?: string;
+}
+
+/**
+ * Props for ProjectTechStack component.
+ */
+export interface ProjectTechStackProps {
+  technologies: Technology[];
+}
+
+/**
+ * Timeline item for ProjectTimeline component.
+ */
+export interface TimelineItem {
+  date: string;
+  title: string;
+  description?: string;
+  status?: "completed" | "in-progress" | "planned";
+}
+
+/**
+ * Props for ProjectTimeline component.
+ */
+export interface ProjectTimelineProps {
+  items: TimelineItem[];
+}
+
+/**
+ * Feature for ProjectFeatureShowcase component.
+ */
+export interface Feature {
+  title: string;
+  description: string;
+  status?: string;
+}
+
+/**
+ * Feature group for ProjectFeatureShowcase component.
+ */
+export interface FeatureGroup {
+  title: string;
+  image?: string;
+  features: Feature[];
+}
+
+/**
+ * Props for ProjectFeatureShowcase component.
+ */
+export interface ProjectFeatureShowcaseProps {
+  groups: FeatureGroup[];
+}
+
+/**
+ * Metric for ProjectMetrics component.
+ */
+export interface Metric {
+  label: string;
+  value: string;
+  icon?: string;
+  progress?: number;
+}
+
+/**
+ * Props for ProjectMetrics component.
+ */
+export interface ProjectMetricsProps {
+  metrics: Metric[];
+}
+
+/**
+ * Props for ProjectChallengeCard component.
+ */
+export interface ProjectChallengeCardProps {
+  title: string;
+  challenge: string;
+  solution: string;
+  impact?: string;
+  difficulty?: string;
+  domain?: string;
+}
+
+export type ProjectSlugParams = { slug: string };
