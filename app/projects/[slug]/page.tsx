@@ -7,7 +7,7 @@ import {
   ProjectMetrics,
   ProjectChallengeCard,
 } from "@/components/projects";
-import type { Technology } from "@/types/project";
+import type { Technology, Project } from "@/types/project";
 
 /**
  * Project detail page for /projects/[slug].
@@ -20,7 +20,9 @@ export default async function ProjectDetail({
   params: Promise<{ slug: string }>;
 }): Promise<React.JSX.Element> {
   const { slug } = await params;
-  const project = await getProjectBySlug(slug);
+  const project: Project | null = (await getProjectBySlug(
+    slug
+  )) as Project | null;
 
   if (!project) {
     return <div>Project not found</div>;
@@ -34,9 +36,9 @@ export default async function ProjectDetail({
           {new Date(project.publishedAt).toLocaleDateString()}
         </p>
         <div className="flex gap-2 mb-4">
-          {project.technologies.slice(0, 4).map((tech: Technology) => (
-            <span key={tech.name} className="badge">
-              {tech.name}
+          {project.technologies.slice(0, 4).map((tech: string, idx: number) => (
+            <span key={tech} className="badge">
+              {tech}
             </span>
           ))}
           {project.technologies.length > 4 && (

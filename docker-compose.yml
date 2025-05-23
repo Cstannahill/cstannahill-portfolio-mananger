@@ -23,6 +23,7 @@ services:
       - MONGODB_URI=mongodb://admin:password@mongodb:27017/portfolio?authSource=admin
       - NEXTAUTH_SECRET=development-secret
       - NEXTAUTH_URL=http://localhost:3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
     volumes:
       - .:/app
       - /app/node_modules

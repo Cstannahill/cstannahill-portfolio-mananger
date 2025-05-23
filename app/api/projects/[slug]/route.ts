@@ -8,9 +8,13 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    console.log("Connecting to database...");
     await connectToDatabase();
+    console.log("Connected to database");
     const { slug } = await params;
+    console.log("Fetching project with slug:", slug);
     const project = await Project.findOne({ slug });
+    console.log("Project fetched:", project);
     if (!project) {
       return NextResponse.json(
         {

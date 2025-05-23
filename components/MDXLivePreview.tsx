@@ -1,10 +1,9 @@
 // components/MDXLivePreview.tsx
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Fragment } from "react";
 import { MDXProvider } from "@mdx-js/react";
 import { evaluate } from "@mdx-js/mdx";
-import * as runtime from "react/jsx-runtime";
-import * as devRuntime from "react/jsx-dev-runtime";
+
 import { ProjectTechStack } from "@/components/projects/ProjectTechStack";
 import { ProjectTimeline } from "@/components/projects/ProjectTimeline";
 import { ProjectFeatureShowcase } from "@/components/projects/ProjectFeatureShowcase";
@@ -44,13 +43,9 @@ export const MDXLivePreview: React.FC<MDXLivePreviewProps> = ({
       }
 
       try {
-        // Use the appropriate runtime based on environment
-        const isDevelopment = process.env.NODE_ENV === "development";
-        const jsxRuntime = isDevelopment ? devRuntime : runtime;
-
         const { default: Component } = await evaluate(mdxSource, {
-          ...jsxRuntime,
-          development: isDevelopment,
+          Fragment,
+          development: process.env.NODE_ENV === "development",
           useMDXComponents: () => components,
         });
 

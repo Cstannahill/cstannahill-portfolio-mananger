@@ -1,0 +1,28 @@
+@utility content-auto {
+  content-visibility: auto;
+}
+
+@utility scrollbar-hidden {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Functional utilities with theme values */
+@utility glow-* {
+  box-shadow: 0 0 --value(--spacing- *) var(--color-brand-500);
+}
+
+/* Functional utilities with arbitrary values */
+@utility tab-* {
+  tab-size: --value([integer]);
+}
+
+/* Multiple value support */
+@utility fade-* {
+  opacity: --value([percentage]);
+  opacity: calc(--value(integer) * 1%);
+  opacity: --value(--opacity- *);
+}

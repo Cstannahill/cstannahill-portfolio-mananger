@@ -1,9 +1,7 @@
 export async function getProjectBySlug(slug: string): Promise<unknown> {
-  // Use NEXT_PUBLIC_API_URL if set, otherwise use relative path
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-  const url = baseUrl
-    ? `${baseUrl.replace(/\/$/, "")}/api/projects/${slug}`
-    : `/api/projects/${slug}`;
+  // Always use NEXT_PUBLIC_API_URL for server fetches
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const url = `${baseUrl.replace(/\/$/, "")}/api/projects/${slug}`;
 
   const res = await fetch(url);
 

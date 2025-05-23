@@ -1,12 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  images: {
-    unoptimized: false,
-  },
-  // Disable static export to avoid build-time execution
-  output: undefined,
-  // Disable optimizations that might trigger native code
+  // Transpile MDX-related packages to ensure compatibility
+  transpilePackages: ["next-mdx-remote", "@mdx-js/react", "@mdx-js/runtime"],
+
+  // Configure webpack to resolve React properly
 };
 
 export default nextConfig;
