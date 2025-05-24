@@ -23,7 +23,7 @@ export const ProjectTimeline: React.FC<ProjectTimelineProps> = ({ items }) => (
           ></span>
           <span className="font-semibold text-gray-800">{item.title}</span>
           {item.status && (
-            <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-600">
+            <span className="ml-2 text-xs px-2 py-0.5 rounded bg-[#1d1916] text-gray-600">
               {item.status}
             </span>
           )}

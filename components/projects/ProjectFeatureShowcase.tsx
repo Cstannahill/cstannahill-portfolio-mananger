@@ -22,7 +22,7 @@ export const ProjectFeatureShowcase: React.FC<ProjectFeatureShowcaseProps> = ({
 }) => (
   <div className="space-y-8" aria-label="Project feature showcase">
     {groups.map((group, idx) => (
-      <section key={group.title + idx}>
+      <section key={group.title + idx} className="bg-[#1d1916]">
         <h3 className="text-lg font-semibold mb-2">{group.title}</h3>
         {group.image && (
           <img
@@ -39,7 +39,7 @@ export const ProjectFeatureShowcase: React.FC<ProjectFeatureShowcaseProps> = ({
               </span>
               <span className="text-gray-700">{feature.description}</span>
               {feature.status && (
-                <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-600">
+                <span className="ml-2 text-xs px-2 py-0.5 rounded bg-[#1d1916] text-gray-600">
                   {feature.status}
                 </span>
               )}

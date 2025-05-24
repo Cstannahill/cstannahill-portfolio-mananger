@@ -144,12 +144,19 @@ export default function ProjectsPage() {
               filteredProjects.map((project: ProjectDashboard) => (
                 <Card key={project._id} className="p-4">
                   <div className="grid md:grid-cols-[120px_1fr] gap-4">
-                    <div className="w-full h-[100px] bg-muted rounded-md overflow-hidden">
-                      {project.images && project.images[0] ? (
-                        <div className="flex items-center justify-center h-full bg-muted text-center text-muted-foreground">
-                          {/* In real app, this would be an Image component */}
-                          <span className="text-xs">Project Image</span>
-                        </div>
+                    <div className="w-full h-[100px] bg-muted rounded-md overflow-hidden flex items-center justify-center">
+                      {project.coverImage ? (
+                        <img
+                          src={project.coverImage}
+                          alt={`${project.title} cover image`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : project.images && project.images[0] ? (
+                        <img
+                          src={project.images[0]}
+                          alt={`${project.title} image 1`}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <div className="flex items-center justify-center h-full bg-muted text-center text-muted-foreground">
                           <span>No Image</span>

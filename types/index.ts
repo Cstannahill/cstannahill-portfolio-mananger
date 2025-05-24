@@ -1,15 +1,7 @@
-export type { Tag } from "./tag";
-export type { Technology } from "./technology";
-export type {
-  Technology as ProjectTechnology,
-  ProjectTechStackProps,
-  TimelineItem,
-  ProjectTimelineProps,
-  Feature,
-  FeatureGroup,
-  ProjectFeatureShowcaseProps,
-  Metric,
-  ProjectMetricsProps,
-  ProjectChallengeCardProps,
-} from "./project";
-export type { ProjectDashboard } from "./project-dashboard";
+export * from "./tag";
+// export * from "./technology"; // Commented out to avoid duplicate export
+export * from "./ai-settings";
+export * from "./ai-generate";
+export * from "./blog";
+export * from "./project-dashboard";
+export * from "./project";

@@ -3,6 +3,8 @@
 import React, { useEffect, useState, Fragment } from "react";
 import { MDXProvider } from "@mdx-js/react";
 import { evaluate } from "@mdx-js/mdx";
+import * as _jsx_runtime from "react/jsx-runtime";
+import * as _jsx_dev_runtime from "react/jsx-dev-runtime";
 
 import { ProjectTechStack } from "@/components/projects/ProjectTechStack";
 import { ProjectTimeline } from "@/components/projects/ProjectTimeline";
@@ -44,6 +46,8 @@ export const MDXLivePreview: React.FC<MDXLivePreviewProps> = ({
 
       try {
         const { default: Component } = await evaluate(mdxSource, {
+          ..._jsx_runtime,
+          ..._jsx_dev_runtime,
           Fragment,
           development: process.env.NODE_ENV === "development",
           useMDXComponents: () => components,

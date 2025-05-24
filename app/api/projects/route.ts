@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectToDatabase from "@/lib/db/mongodb";
 import Project from "@/models/Project";
 import { z } from "zod";
+import { ApiResponseSuccess, ApiResponseError } from "@/lib/api/response";
 
 // Zod schema for project creation
 const ProjectCreateSchema = z.object({
@@ -27,21 +28,42 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const projects = await Project.find({}).sort({ createdAt: -1 });
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get("limit");
+    const sortParam = searchParams.get("sort");
 
-    return NextResponse.json({
-      status: "success",
-      data: projects,
-    });
+    let query = Project.find({});
+
+    // Sorting
+    if (sortParam) {
+      const [sortField, sortOrder] = sortParam.split(":");
+      const sortDirection = sortOrder === "desc" ? -1 : 1;
+      if (sortField) {
+        query = query.sort({ [sortField]: sortDirection });
+      }
+    } else {
+      // Default sort if not specified
+      query = query.sort({ createdAt: -1 });
+    }
+
+    // Limiting
+    if (limitParam) {
+      const limit = parseInt(limitParam, 10);
+      if (!isNaN(limit) && limit > 0) {
+        query = query.limit(limit);
+      }
+    }
+
+    const projects = await query.exec();
+
+    return ApiResponseSuccess(projects, 200, "Projects fetched successfully");
   } catch (error) {
     console.error("Error fetching projects:", error);
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Failed to fetch projects",
-        error: (error as Error).message,
-      },
-      { status: 500 }
+    return ApiResponseError(
+      "Failed to fetch projects",
+      500,
+      "PROJECT_FETCH_ERROR",
+      (error as Error).message
     );
   }
 }
@@ -53,13 +75,11 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const parseResult = ProjectCreateSchema.safeParse(data);
     if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          status: "error",
-          message: "Validation failed",
-          errors: parseResult.error.flatten(),
-        },
-        { status: 400 }
+      return ApiResponseError(
+        "Validation failed",
+        400,
+        "VALIDATION_ERROR",
+        parseResult.error.flatten()
       );
     }
     const projectData = parseResult.data;
@@ -76,22 +96,14 @@ export async function POST(request: NextRequest) {
     }
     // Create new project
     const project = await Project.create(projectData);
-    return NextResponse.json(
-      {
-        status: "success",
-        data: project,
-      },
-      { status: 201 }
-    );
+    return ApiResponseSuccess(project, 201, "Project created successfully");
   } catch (error) {
     console.error("Error creating project:", error);
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Failed to create project",
-        error: (error as Error).message,
-      },
-      { status: 500 }
+    return ApiResponseError(
+      "Failed to create project",
+      500,
+      "PROJECT_CREATE_ERROR",
+      (error as Error).message
     );
   }
 }

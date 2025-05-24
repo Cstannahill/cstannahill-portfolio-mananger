@@ -20,7 +20,7 @@ export const ProjectMetrics: React.FC<ProjectMetricsProps> = ({ metrics }) => (
     {metrics.map((metric, idx) => (
       <div
         key={metric.label + idx}
-        className="flex flex-col p-4 bg-gray-50 rounded shadow"
+        className="flex flex-col p-4 bg-[#1d1916] rounded shadow"
       >
         <div className="flex items-center mb-2">
           {metric.icon && (
@@ -33,7 +33,7 @@ export const ProjectMetrics: React.FC<ProjectMetricsProps> = ({ metrics }) => (
         <span className="text-2xl font-bold text-blue-600">{metric.value}</span>
         {typeof metric.progress === "number" && (
           <div
-            className="w-full bg-gray-200 rounded h-2 mt-2"
+            className="w-full bg-[#1d1916] rounded h-2 mt-2"
             aria-label={`Progress for ${metric.label}`}
             tabIndex={0}
           >

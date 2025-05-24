@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import dbConnect from "@/lib/db/mongodb";
 import Tag from "@/models/Tag";
+import { ApiResponseSuccess, ApiResponseError } from "@/lib/api/response";
 
 const TagSchema = z.object({
   name: z.string().min(1, "Tag name is required"),
@@ -9,37 +10,49 @@ const TagSchema = z.object({
 });
 
 export async function GET() {
-  await dbConnect();
-  const tags = await Tag.find().sort({ name: 1 });
-  return NextResponse.json(tags);
+  try {
+    await dbConnect();
+    const tags = await Tag.find().sort({ name: 1 });
+    return ApiResponseSuccess(tags, 200, "Tags fetched successfully");
+  } catch (error) {
+    console.error("Error fetching tags:", error);
+    return ApiResponseError(
+      "Failed to fetch tags",
+      500,
+      "TAG_FETCH_ERROR",
+      (error as Error).message
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
-  await dbConnect();
   try {
+    await dbConnect();
     const body = await req.json();
     const parsed = TagSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { message: parsed.error.message },
-        { status: 400 }
+      return ApiResponseError(
+        "Validation failed",
+        400,
+        "VALIDATION_ERROR",
+        parsed.error.flatten()
       );
     }
     const { name, color } = parsed.data;
     // Check for existing tag
     const existing = await Tag.findOne({ name });
     if (existing) {
-      return NextResponse.json(
-        { message: "Tag already exists" },
-        { status: 409 }
-      );
+      return ApiResponseError("Tag already exists", 409, "DUPLICATE_TAG_ERROR");
     }
     const tag = await Tag.create({ name, color: color ?? null });
-    return NextResponse.json(tag, { status: 201 });
+    return ApiResponseSuccess(tag, 201, "Tag created successfully");
   } catch (error) {
-    return NextResponse.json(
-      { message: (error as Error).message },
-      { status: 500 }
+    console.error("Error creating tag:", error);
+    return ApiResponseError(
+      "Failed to create tag",
+      500,
+      "TAG_CREATE_ERROR",
+      (error as Error).message
     );
   }
 }

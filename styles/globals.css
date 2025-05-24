@@ -120,3 +120,32 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for ReactMde toolbar */
+.react-mde .mde-header {
+  @apply bg-gray-100 dark:bg-gray-800 p-2 rounded-t-md;
+}
+
+.react-mde .mde-header-item > button {
+  @apply bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-3 rounded-md text-sm transition-colors duration-150 ease-in-out;
+  border: 1px solid theme("colors.gray.600"); /* Subtle border */
+}
+
+.react-mde .mde-header-item > button:disabled {
+  @apply bg-gray-500 text-gray-300 cursor-not-allowed;
+}
+
+/* Style for the selected tab (Write/Preview) */
+.react-mde .mde-tabs button {
+  @apply text-gray-700 dark:text-gray-300 font-medium py-2 px-4;
+}
+
+.react-mde .mde-tabs button.selected,
+.react-mde .mde-tabs button:hover {
+  @apply text-primary dark:text-primary-foreground bg-primary/10 dark:bg-primary/20 rounded-t-md;
+}
+
+/* Ensure enough height for the text area - already handled by minEditorHeight in component */
+.react-mde .mde-text {
+  min-height: 300px; /* Reinforce if needed, but prop is better */
+}

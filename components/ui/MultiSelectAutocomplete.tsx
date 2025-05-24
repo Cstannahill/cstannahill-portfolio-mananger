@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Tag } from "@/types/tag";
 import type { Technology } from "@/types/technology";
+import { toast } from "sonner";
 
 // Union type for Tag or Technology
 export type Option = Tag | Technology;
@@ -49,19 +50,57 @@ export const MultiSelectAutocomplete: React.FC<
 
   useEffect(() => {
     setLoading(true);
+    setError(null); // Clear previous errors
     fetch(fetchUrl)
-      .then((res) => res.json())
-      .then((data) => setOptions(data))
-      .catch(() => setError("Failed to load options"))
+      .then(async (res) => {
+        if (!res.ok) {
+          // Try to parse a JSON error response
+          try {
+            const errorData = await res.json();
+            throw new Error(
+              errorData.message ||
+                `Failed to load options: ${res.status}`
+            );
+          } catch (parseError) {
+            // Fallback if response is not JSON or message is not present
+            throw new Error(
+              `Failed to load options: ${res.status} ${res.statusText}`
+            );
+          }
+        }
+        return res.json();
+      })
+      .then((data) => {
+        // Assuming the API returns { success: boolean, data: Option[] }
+        // or just Option[] directly. Adjust based on your actual API structure.
+        if (data && Array.isArray(data)) {
+          // Direct array
+          setOptions(data);
+        } else if (data && data.success && Array.isArray(data.data)) {
+          // Wrapped response
+          setOptions(data.data);
+        } else {
+          // Handle cases where data is not in the expected format
+          console.error("Fetched data is not in the expected format:", data);
+          throw new Error("Received malformed data from server.");
+        }
+      })
+      .catch((err: Error) => {
+        // Catch any error from the promise chain
+        console.error("Error fetching options:", err);
+        setError(
+          err.message || "An unknown error occurred while fetching options."
+        );
+      })
       .finally(() => setLoading(false));
   }, [fetchUrl]);
 
   useEffect(() => {
     setFiltered(
-      options.filter(
+      options?.filter(
         (opt) =>
-          opt.name.toLowerCase().includes(input.toLowerCase()) &&
-          !value.some((v) => v.name === opt.name)
+          opt?.name?.toLowerCase()?.includes(input?.toLowerCase()) &&
+          !value?.some((v) => v?.name === opt?.name)
       )
     );
   }, [input, options, value]);
@@ -74,19 +113,51 @@ export const MultiSelectAutocomplete: React.FC<
       const res = await fetch(addUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: input.trim(), color: null }),
+        body: JSON.stringify({ name: input.trim(), color: null }), // Assuming color can be null or handled by API
       });
       if (!res.ok) {
-        const result = await res.json();
-        setError(result.message || "Failed to add");
+        let errorMessage = "Failed to add new option.";
+        try {
+          const result = await res.json();
+          errorMessage =
+            result.message ||
+            `Failed to add: ${res.status} ${res.statusText}`;
+        } catch (e) {
+          // If error response is not JSON, use status text
+          errorMessage = `Failed to add: ${res.status} ${res.statusText}`;
+        }
+        setError(errorMessage);
+        toast.error("Failed to add option", { description: errorMessage });
         return;
       }
-      const newOption = await res.json();
-      setOptions((prev) => [...prev, newOption]);
-      onChange([...value, newOption]);
+      // Assuming the API returns the newly created option directly
+      // or a success response with the new option in `data`
+      const newOptionResponse = await res.json();
+      let newOptionToAdd: Option;
+
+      if (newOptionResponse && newOptionResponse.success) {
+        newOptionToAdd = newOptionResponse.data as Option;
+      } else if (newOptionResponse && newOptionResponse.name) {
+        newOptionToAdd = newOptionResponse as Option;
+      } else {
+        console.error(
+          "Add option response is not in the expected format:",
+          newOptionResponse
+        );
+        throw new Error("Received malformed data after adding option.");
+      }
+
+      setOptions((prev) => [...prev, newOptionToAdd]);
+      onChange([...value, newOptionToAdd]);
       setInput("");
-    } catch (e) {
-      setError("Failed to add");
+      toast.success(`Option "${newOptionToAdd.name}" added successfully.`);
+    } catch (e: any) {
+      console.error("Error in handleAdd:", e);
+      const errorMessage =
+        e.message ||
+        "An unexpected error occurred while adding the option.";
+      setError(errorMessage);
+      toast.error("Error adding option", { description: errorMessage });
     } finally {
       setLoading(false);
     }

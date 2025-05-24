@@ -3,14 +3,8 @@
  * @module types/project
  */
 
-/**
- * Technology used in a project.
- */
-export interface Technology {
-  name: string;
-  icon?: string;
-  role?: string;
-}
+import type { Technology } from "./technology";
+export type { Technology }; // Added to re-export the imported Technology type
 
 /**
  * Props for ProjectTechStack component.
