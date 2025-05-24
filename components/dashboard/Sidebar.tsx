@@ -54,7 +54,7 @@ const navigationItems = [
   },
   {
     name: "Settings",
-    href: "/dashboard/settings",
+    href: "/dashboard/settings/ai",
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"

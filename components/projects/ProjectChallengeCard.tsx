@@ -14,7 +14,7 @@ export const ProjectChallengeCard: React.FC<ProjectChallengeCardProps> = ({
   domain,
 }) => (
   <section
-    className="p-4 bg-white rounded shadow mb-4"
+    className="p-4 rounded shadow mb-4"
     tabIndex={0}
     aria-label={`Challenge: ${title}`}
   >
@@ -32,12 +32,12 @@ export const ProjectChallengeCard: React.FC<ProjectChallengeCardProps> = ({
     )}
     <div className="flex flex-wrap gap-2 mt-2">
       {difficulty && (
-        <span className="px-2 py-0.5 rounded bg-gray-200 text-xs text-gray-700">
+        <span className="px-2 py-0.5 rounded bg-[#1d1916] text-xs text-gray-700">
           Difficulty: {difficulty}
         </span>
       )}
       {domain && (
-        <span className="px-2 py-0.5 rounded bg-gray-200 text-xs text-gray-700">
+        <span className="px-2 py-0.5 rounded bg-[#1d1916] text-xs text-gray-700">
           Domain: {domain}
         </span>
       )}

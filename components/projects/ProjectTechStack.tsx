@@ -12,7 +12,7 @@ export const ProjectTechStack: React.FC<ProjectTechStackProps> = ({
     {technologies.map((tech, idx) => (
       <span
         key={tech.name + idx}
-        className="inline-flex items-center px-3 py-1 rounded bg-gray-100 text-gray-800 text-sm font-medium border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="inline-flex items-center px-3 py-1 rounded bg-[#1d1916] text-gray-800 text-sm font-medium border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         tabIndex={0}
         aria-label={tech.role ? `${tech.name}, ${tech.role}` : tech.name}
       >

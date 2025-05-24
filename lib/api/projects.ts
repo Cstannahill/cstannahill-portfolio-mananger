@@ -1,4 +1,6 @@
-export async function getProjectBySlug(slug: string): Promise<unknown> {
+import type { Project } from "@/types/project"; // Import the Project type
+
+export async function getProjectBySlug(slug: string): Promise<Project | null> {
   // Always use NEXT_PUBLIC_API_URL for server fetches
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
   const url = `${baseUrl.replace(/\/$/, "")}/api/projects/${slug}`;
@@ -8,6 +10,7 @@ export async function getProjectBySlug(slug: string): Promise<unknown> {
   // Defensive: check content-type and status
   const contentType = res.headers.get("content-type") || "";
   if (!res.ok) {
+    if (res.status === 404) return null; // Handle not found gracefully
     let errorText = await res.text();
     // Try to parse error as JSON, fallback to text
     try {
@@ -25,5 +28,5 @@ export async function getProjectBySlug(slug: string): Promise<unknown> {
   }
 
   const { data } = await res.json();
-  return data;
+  return data as Project; // Assert data as Project type
 }

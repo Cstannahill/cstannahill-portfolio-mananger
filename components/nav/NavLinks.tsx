@@ -56,7 +56,7 @@ export const NavLinks: React.FC<{ onLinkClick?: () => void }> = ({
               variant={isActive ? "secondary" : "ghost"}
               size="sm"
               className={cn(
-                "w-full md:w-auto justify-start md:justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
+                "w-full md:w-auto justify-start md:justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring border-foreground border",
                 isActive
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:text-foreground",

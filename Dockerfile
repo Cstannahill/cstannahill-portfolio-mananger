@@ -9,7 +9,7 @@ RUN apk add --no-cache make gcc g++ python3 linux-headers
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # No need to copy files or build here since we're using volume mounting for development
 # COPY . .
