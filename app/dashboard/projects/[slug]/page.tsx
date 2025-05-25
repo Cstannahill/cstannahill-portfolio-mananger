@@ -211,11 +211,18 @@ export default async function ProjectDashboardPage({
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Technologies</h2>
             <div className="flex flex-wrap gap-2">
-              {project.technologies.map((tech: string) => (
-                <Badge key={tech} variant="outline" className="bg-primary/10">
-                  {tech}
-                </Badge>
-              ))}
+              {project.technologies.map((tech) => {
+                const techValue = typeof tech === "string" ? tech : tech.name;
+                return (
+                  <Badge
+                    key={techValue}
+                    variant="outline"
+                    className="bg-primary/10"
+                  >
+                    {techValue}
+                  </Badge>
+                );
+              })}
             </div>
           </Card>
 
@@ -223,11 +230,14 @@ export default async function ProjectDashboardPage({
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Tags</h2>
             <div className="flex flex-wrap gap-2">
-              {project.tags.map((tag: string) => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
+              {project.tags.map((tag) => {
+                const tagValue = typeof tag === "string" ? tag : tag.name;
+                return (
+                  <Badge key={tagValue} variant="secondary">
+                    {tagValue}
+                  </Badge>
+                );
+              })}
             </div>
           </Card>
 

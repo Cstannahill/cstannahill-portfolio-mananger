@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectToDatabase from "@/lib/db/mongodb";
 import BlogPost from "@/models/BlogPost";
 import { ApiResponseSuccess, ApiResponseError } from "@/lib/api/response";
+import { formatMDX } from "@/lib/utils/markdown";
 
 // GET all blog posts
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -64,6 +65,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await connectToDatabase();
 
     const data = await request.json();
+
+    // Format MDX content before saving
+    try {
+      data.content = await formatMDX(data.content);
+    } catch (formatErr) {
+      console.error("Failed to format blog MDX content:", formatErr);
+      // Proceed with unformatted content if formatting fails
+    }
 
     // Validate required fields (adjust based on your BlogPost model)
     const requiredFields: (keyof typeof data)[] = [

@@ -4,7 +4,7 @@ import { NextPage } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Trash2 } from "lucide-react"; // Import Trash2
-import type { BlogPostSummary, BlogPostsApiResponse } from "@/types";
+import type { BlogPostSummary, BlogPostApiResponse } from "@/types";
 import { toast } from "sonner";
 import { useEffect, useState } from "react"; // Import useEffect and useState
 import { useRouter } from "next/navigation"; // Import useRouter

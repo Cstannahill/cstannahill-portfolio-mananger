@@ -24,6 +24,7 @@ services:
       - NEXTAUTH_SECRET=development-secret
       - NEXTAUTH_URL=http://localhost:3000
       - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - NEXT_PUBLIC_IS_DOCKERIZED=true
     volumes:
       - .:/app
       - /app/node_modules

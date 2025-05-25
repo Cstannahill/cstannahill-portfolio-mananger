@@ -12,6 +12,8 @@ import type {
   VertexAiProviderSettings,
 } from "@/types";
 import { AI_PROVIDER } from "@/types";
+import { decryptText } from "@/lib/utils/encryption"; // Added import
+import connectToDatabase from "@/lib/db/mongodb"; // Ensure this is imported
 
 import { Ollama } from "ollama";
 import OpenAI from "openai";
@@ -37,7 +39,17 @@ async function callOllamaAPI(
     throw new Error("Ollama model not selected.");
   }
 
-  const ollama = new Ollama({ host: providerSettings.instanceUrl });
+  let ollamaHost = providerSettings.instanceUrl;
+  // If running inside Docker and targeting localhost, use host.docker.internal
+  // This assumes the NEXT_PUBLIC_IS_DOCKERIZED env var is set to "true" in the Docker environment
+  if (process.env.NEXT_PUBLIC_IS_DOCKERIZED === "true") {
+    ollamaHost = ollamaHost.replace(
+      /localhost|127\.0\.0\.1/g,
+      "host.docker.internal"
+    );
+  }
+
+  const ollama = new Ollama({ host: ollamaHost });
   const prompt = `Task: ${taskIdentifier}\nContext: ${JSON.stringify(taskContext)}\nInstructions: ${settings.customPrompt || ""}`;
 
   try {
@@ -70,6 +82,12 @@ async function callOpenAIAPI(
     throw new Error("OpenAI model not selected.");
   }
 
+  // Ensure the model ID doesn't have an "openai-" prefix, which can cause 404 errors.
+  let modelId = settings.selectedModelId;
+  if (modelId.startsWith("openai-")) {
+    modelId = modelId.substring("openai-".length);
+  }
+
   const openai = new OpenAI({
     apiKey: providerSettings.apiKey,
     organization: providerSettings.organizationId || undefined,
@@ -79,7 +97,7 @@ async function callOpenAIAPI(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: settings.selectedModelId,
+      model: modelId, // Use the potentially corrected modelId
       messages: [{ role: "user", content: prompt }],
     });
     return (
@@ -157,29 +175,21 @@ async function callVertexAIAPI(
     throw new Error("Vertex AI model not selected.");
   }
 
-  // Log authentication method
-  if (providerSettings.apiKey) {
-    console.warn(
-      "[Vertex AI] API Key is configured in settings, but the Node.js SDK primarily uses ADC (GOOGLE_APPLICATION_CREDENTIALS) or service accounts. Ensure your environment is set up accordingly if using API keys directly is intended and supported for this model/endpoint."
-    );
-    // Note: The current GoogleVertexAI constructor does not directly accept an API key.
-    // If direct API key usage is required, the SDK interaction might need to be via a REST call
-    // or a different client library setup. For now, we proceed assuming ADC.
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    console.log(
-      "[Vertex AI] Authenticating using GOOGLE_APPLICATION_CREDENTIALS environment variable."
-    );
-  } else {
-    console.warn(
-      "[Vertex AI] GOOGLE_APPLICATION_CREDENTIALS environment variable not set, and no API key provided in settings. SDK will attempt to find credentials via other methods (e.g., gcloud CLI, metadata server)."
+  // Enforce authentication configuration: require ADC or API key
+  const hasApiKey = Boolean(
+    providerSettings.apiKey || process.env.GOOGLE_API_KEY
+  );
+  const hasADC = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+  if (!hasApiKey && !hasADC) {
+    throw new Error(
+      "Vertex AI authentication not configured. Please set GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_API_KEY environment variable, or configure providerSettings.apiKey in AI settings."
     );
   }
 
   const vertexAIClient = new GoogleVertexAI({
     project: providerSettings.projectId,
     location: providerSettings.region,
-    // The SDK does not directly take an API key in the constructor for generative models.
-    // It relies on Application Default Credentials (ADC).
+    // Authentication via ADC or API key in environment (ADC preferred)
   });
 
   const generativeModel = vertexAIClient.getGenerativeModel({
@@ -206,46 +216,66 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.id) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "User not authenticated",
-          data: undefined,
-          debug: undefined,
-        } as AiGenerateResponse,
+        { success: false, message: "User not authenticated" },
         { status: 401 }
       );
     }
 
-    const user = await User.findById(session.user.id)
-      .select("aiSettings")
-      .lean<IUser>(); // Added type assertion for lean()
+    await connectToDatabase(); // Ensure DB connection
+    const user = await User.findOne({ _id: session.user.id }).select(
+      "aiSettings"
+    );
 
-    if (!user || !user.aiSettings) {
+    if (!user) {
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            "AI settings not configured. Please configure your AI assistant first.",
-          data: undefined,
-          debug: undefined,
-        } as AiGenerateResponse,
+        { success: false, message: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const currentAiSettings = user.aiSettings as AiSettings | undefined;
+
+    if (!currentAiSettings || !currentAiSettings.selectedProvider) {
+      return NextResponse.json(
+        { success: false, message: "AI provider not configured for the user." },
         { status: 400 }
       );
     }
 
-    const aiSettings = user.aiSettings as AiSettings;
+    // Create a mutable deep copy for decryption
+    const decryptedSettings: AiSettings = JSON.parse(
+      JSON.stringify(currentAiSettings)
+    );
 
-    if (!aiSettings.selectedProvider || !aiSettings.selectedModelId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "AI provider or model not selected in settings. Please update your AI configuration.",
-          data: undefined,
-          debug: undefined,
-        } as AiGenerateResponse,
-        { status: 400 }
-      );
+    // Decrypt API keys if present
+    if (decryptedSettings.providerSettings) {
+      for (const providerKeyStr of Object.keys(
+        decryptedSettings.providerSettings
+      )) {
+        const providerKey =
+          providerKeyStr as keyof typeof decryptedSettings.providerSettings;
+        const providerSetting = decryptedSettings.providerSettings[
+          providerKey
+        ] as any; // Using any for simplicity, or use a more specific type union
+
+        if (
+          providerSetting &&
+          typeof providerSetting.apiKey === "string" &&
+          providerSetting.apiKey // Ensure it's not an empty string
+        ) {
+          try {
+            providerSetting.apiKey = decryptText(providerSetting.apiKey);
+          } catch (err) {
+            console.error(
+              `[API POST /api/ai/generate] Failed to decrypt API key for ${String(providerKey)}:`,
+              err
+            );
+            // If decryption fails, the API key will remain encrypted or become invalid.
+            // The subsequent call to the provider's API will likely fail, which is an acceptable outcome.
+            // The error will be caught by the main try-catch block.
+          }
+        }
+      }
     }
 
     const body: AiGenerateRequest = await request.json();
@@ -255,99 +285,72 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         {
           success: false,
-          error: "taskIdentifier and taskContext are required.",
-          data: undefined,
-          debug: undefined,
-        } as AiGenerateResponse,
+          message: "Missing taskIdentifier or taskContext in request body",
+        },
         { status: 400 }
       );
     }
 
-    let generatedData: string;
-    let providerError: Error | null = null;
+    let generatedContent: string;
 
-    try {
-      switch (aiSettings.selectedProvider) {
-        case AI_PROVIDER.OLLAMA:
-          generatedData = await callOllamaAPI(
-            aiSettings,
-            taskIdentifier,
-            taskContext
-          );
-          break;
-        case AI_PROVIDER.OPENAI:
-          generatedData = await callOpenAIAPI(
-            aiSettings,
-            taskIdentifier,
-            taskContext
-          );
-          break;
-        case AI_PROVIDER.ANTHROPIC:
-          generatedData = await callAnthropicAPI(
-            aiSettings,
-            taskIdentifier,
-            taskContext
-          );
-          break;
-        case AI_PROVIDER.VERTEX_AI:
-          generatedData = await callVertexAIAPI(
-            aiSettings,
-            taskIdentifier,
-            taskContext
-          );
-          break;
-        default:
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Unsupported AI provider.",
-              data: undefined,
-              debug: undefined,
-            } as AiGenerateResponse,
-            { status: 400 }
-          );
-      }
-    } catch (err) {
-      providerError = err instanceof Error ? err : new Error(String(err));
-      console.error(
-        `Error calling ${aiSettings.selectedProvider} API:`,
-        providerError
-      );
-      generatedData = ""; // Ensure generatedData is defined
+    // Use decryptedSettings for API calls
+    switch (decryptedSettings.selectedProvider) {
+      case AI_PROVIDER.OLLAMA:
+        generatedContent = await callOllamaAPI(
+          decryptedSettings,
+          taskIdentifier,
+          taskContext
+        );
+        break;
+      case AI_PROVIDER.OPENAI:
+        generatedContent = await callOpenAIAPI(
+          decryptedSettings,
+          taskIdentifier,
+          taskContext
+        );
+        break;
+      case AI_PROVIDER.ANTHROPIC:
+        generatedContent = await callAnthropicAPI(
+          decryptedSettings,
+          taskIdentifier,
+          taskContext
+        );
+        break;
+      case AI_PROVIDER.VERTEX_AI:
+        generatedContent = await callVertexAIAPI(
+          decryptedSettings,
+          taskIdentifier,
+          taskContext
+        );
+        break;
+      default:
+        return NextResponse.json(
+          { success: false, message: "Unsupported AI provider selected." },
+          { status: 400 }
+        );
     }
 
-    if (providerError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Failed to generate content using ${aiSettings.selectedProvider}: ${providerError.message}`,
-          data: undefined,
-          debug: {
-            rawResponse: providerError.message,
-            resolvedSettings: aiSettings,
-          },
-        } as AiGenerateResponse,
-        { status: 500 }
-      );
-    }
-
-    const successResponse: AiGenerateResponse = {
+    return NextResponse.json<AiGenerateResponse>({
       success: true,
-      data: generatedData,
-      debug: { resolvedSettings: aiSettings },
-    };
-    return NextResponse.json(successResponse, { status: 200 });
+      data: generatedContent, // Changed 'message' to 'data' and assigned generatedContent
+      // Removed 'message' field
+      // Retained 'provider' and 'modelId' in the debug object as per AiGenerateResponse structure
+      debug: {
+        resolvedSettings: {
+          selectedProvider: decryptedSettings.selectedProvider,
+          selectedModelId: decryptedSettings.selectedModelId,
+        },
+      },
+    });
   } catch (error) {
-    console.error("Error in AI generation route:", error);
+    console.error("[API POST /api/ai/generate] Error:", error);
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json(
+    return NextResponse.json<AiGenerateResponse>(
       {
         success: false,
-        error: "Failed to generate content due to an unexpected error",
-        data: undefined,
-        debug: { rawResponse: errorMessage },
-      } as AiGenerateResponse,
+        error: `AI Generation Error: ${errorMessage}`, // Changed 'message' to 'error'
+      },
       { status: 500 }
     );
   }

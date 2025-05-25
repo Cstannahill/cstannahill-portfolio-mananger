@@ -1,21 +1,29 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useForm, SubmitHandler, ControllerRenderProps } from "react-hook-form";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  // Suspense, // No longer needed for ReactMde
+} from "react";
+import { useForm, SubmitHandler } from "react-hook-form"; // ControllerRenderProps removed as not directly used
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import ReactMde from "react-mde";
-import Showdown from "showdown";
+import dynamic from "next/dynamic";
+// import ReactMde from "react-mde"; // Removed
+// import Showdown from "showdown"; // Removed
 import { z } from "zod";
 
 import type { BlogPostFull } from "@/types/blog";
-import type { Tag } from "@/types"; // Changed from @/types/blog
+import type { Tag } from "@/types";
 import type { AiGenerateRequest } from "@/types/ai-generate";
 import { useAiGenerator } from "@/lib/hooks/useAiGenerator";
+import { formatMDX } from "@/lib/utils/markdown";
 
-import "react-mde/lib/styles/css/react-mde-all.css";
+// import "react-mde/lib/styles/css/react-mde-all.css"; // Removed
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -41,6 +49,15 @@ import {
   MultiSelectCombobox,
   ComboboxOption,
 } from "@/components/ui/multi-select-combobox";
+import { MDXLivePreview } from "@/components/MDXLivePreview";
+
+// Dynamically import MdEditor to disable SSR
+const MdEditor = dynamic(() => import("@/components/shared/MdEditor"), {
+  ssr: false,
+  loading: () => (
+    <Textarea rows={15} placeholder="Loading editor..." disabled />
+  ),
+});
 
 interface ApiResponse<T> {
   success: boolean;
@@ -81,13 +98,11 @@ interface BlogFormProps {
 const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedMdeTab, setSelectedMdeTab] = useState<"write" | "preview">(
-    "write"
-  );
+  // const [selectedMdeTab, setSelectedMdeTab] = useState<"write" | "preview">("write"); // Removed
   const [tagOptions, setTagOptions] = useState<ComboboxOption[]>([]);
   const [lastAiTaskIdentifier, setLastAiTaskIdentifier] = useState<
     string | null
-  >(null); // Added state for last AI task
+  >(null);
   const {
     generateContent: generateAiContent,
     generatedContent: aiGeneratedContent,
@@ -95,7 +110,6 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
     error: aiError,
   } = useAiGenerator();
 
-  // defaultValues should conform to BlogPostFormInput because useForm is typed with it.
   const defaultValues: Partial<BlogPostFormInput> = useMemo(() => {
     return {
       title: initialData?.title || "",
@@ -105,7 +119,9 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
       publishedAt: initialData?.publishedAt
         ? new Date(initialData.publishedAt)
         : new Date(),
-      tags: initialData?.tags || undefined, // Changed: allow undefined for optional input
+      tags:
+        initialData?.tags?.map((t) => (typeof t === "string" ? t : t.name)) ||
+        undefined, // Changed: allow undefined for optional input
       coverImage: initialData?.coverImage || undefined,
     };
   }, [initialData]);
@@ -143,7 +159,9 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
         excerpt: initialData.excerpt || undefined,
         content: initialData.content,
         publishedAt: new Date(initialData.publishedAt),
-        tags: initialData.tags || undefined, // Changed: allow undefined
+        tags:
+          initialData.tags?.map((t) => (typeof t === "string" ? t : t.name)) ||
+          undefined, // Changed: allow undefined
         coverImage: initialData.coverImage || undefined,
       });
     }
@@ -190,6 +208,15 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
 
   const onSubmit: SubmitHandler<BlogPostFormOutput> = async (data) => {
     setIsLoading(true);
+    // Format MDX content before saving
+    try {
+      data.content = await formatMDX(data.content);
+    } catch (err) {
+      console.error("[BlogForm] MDX formatting failed:", err);
+      toast.error(
+        "Content formatting failed, proceeding with unformatted content."
+      );
+    }
     const url =
       mode === "create" ? "/api/blog" : `/api/blog/${initialData?.slug}`;
     const method = mode === "create" ? "POST" : "PUT";
@@ -230,32 +257,52 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
     }
   };
 
-  const generatePreview = useCallback(
-    async (markdown: string): Promise<string> => {
-      const converter = new Showdown.Converter();
-      return converter.makeHtml(markdown);
-    },
-    []
-  );
+  // const generatePreview = useCallback( // Removed
+  //   async (markdown: string): Promise<string> => {
+  //     const converter = new Showdown.Converter();
+  //     return converter.makeHtml(markdown);
+  //   },
+  //   []
+  // );
 
   const handleAiGenerate = async (taskIdentifier: string) => {
     setLastAiTaskIdentifier(taskIdentifier); // Set the task identifier
-    const currentContent = form.getValues("content");
-    const currentTitle = form.getValues("title");
-    const currentExcerpt = form.getValues("excerpt");
+    const currentTitle = form.getValues("title")?.trim();
+    const currentExcerpt = form.getValues("excerpt")?.trim();
+    const currentContent = form.getValues("content")?.trim();
 
     let taskContextInput: Record<string, any> = {};
 
     if (taskIdentifier === "generate_blog_title") {
-      if (currentContent) taskContextInput.currentContent = currentContent;
-      if (currentExcerpt) taskContextInput.currentExcerpt = currentExcerpt;
+      if (currentTitle) {
+        taskContextInput.existingTitle = currentTitle;
+      } else if (currentExcerpt) {
+        taskContextInput.contextExcerpt = currentExcerpt;
+      } else if (currentContent) {
+        taskContextInput.contextContent = currentContent;
+      }
+      // If all are empty, taskContextInput remains empty.
+      // Backend should infer: "generate a random topic, then a title for it."
     } else if (taskIdentifier === "generate_blog_excerpt") {
-      if (currentTitle) taskContextInput.currentTitle = currentTitle;
-      if (currentContent) taskContextInput.currentContent = currentContent;
+      if (currentExcerpt) {
+        taskContextInput.existingExcerpt = currentExcerpt;
+      } else if (currentTitle) {
+        taskContextInput.contextTitle = currentTitle;
+      } else if (currentContent) {
+        taskContextInput.contextContent = currentContent;
+      }
+      // If all are empty, taskContextInput remains empty.
+      // Backend should infer: "generate a random topic, then a title, then an excerpt."
     } else if (taskIdentifier === "generate_blog_content_section") {
-      if (currentTitle) taskContextInput.currentTitle = currentTitle;
-      // For generating a section, maybe provide existing content to expand upon or a specific sub-topic
-      if (currentContent) taskContextInput.currentContent = currentContent;
+      if (currentContent) {
+        taskContextInput.existingContent = currentContent;
+      } else if (currentTitle) {
+        taskContextInput.contextTitle = currentTitle;
+      } else if (currentExcerpt) {
+        taskContextInput.contextExcerpt = currentExcerpt;
+      }
+      // If all are empty, taskContextInput remains empty.
+      // Backend should infer: "generate a random topic, then a title, then a content section."
     }
 
     const requestBody: AiGenerateRequest = {
@@ -327,7 +374,7 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
                   variant="outline"
                   size="sm"
                   onClick={() => handleAiGenerate("generate_blog_excerpt")}
-                  disabled={isAiLoading || !form.getValues("content")}
+                  disabled={isAiLoading}
                 >
                   {isAiLoading &&
                   lastAiTaskIdentifier === "generate_blog_excerpt" ? (
@@ -349,13 +396,14 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
             </FormItem>
           )}
         />
+        {/* Content Field with MdEditor */}
         <FormField
           control={form.control}
           name="content"
           render={({ field }) => (
             <FormItem>
               <div className="flex justify-between items-center">
-                <FormLabel>Content (Markdown)</FormLabel>
+                <FormLabel>Content</FormLabel>
                 <Button
                   type="button"
                   variant="outline"
@@ -371,35 +419,44 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
                   ) : (
                     <SparklesIcon className="mr-2 h-4 w-4" />
                   )}
-                  Generate Section
+                  Generate Content Section
                 </Button>
               </div>
               <FormControl>
-                <ReactMde
-                  {...field}
-                  selectedTab={selectedMdeTab}
-                  onTabChange={setSelectedMdeTab}
-                  generateMarkdownPreview={generatePreview}
-                  childProps={{
-                    writeButton: {
-                      tabIndex: -1,
-                    },
+                <MdEditor
+                  value={field.value || ""} // Ensure value is not null/undefined
+                  onChange={field.onChange}
+                  // initialValue is managed by RHF defaultValues and form.reset
+                  mode={mode}
+                  toolbarConfig={{
+                    generateTitle: false, // Title AI is a separate button
+                    generateSummary: false, // Excerpt AI is a separate button
+                    // generateSections toolbar button removed; using external button for content generation // Enable section generation from toolbar
+                    customItems: [],
                   }}
-                  paste={{
-                    saveImage: async function* (
-                      data: ArrayBuffer
-                    ): AsyncGenerator<string, boolean, unknown> {
-                      console.log("Image paste disabled for now", data);
-                      yield "Pasting images disabled";
-                      return false;
-                    },
+                  onFormat={formatMDX} // Pass the async function directly
+                  onAIClick={async (taskId) => {
+                    await handleAiGenerate(taskId);
+                    // Return the latest content from the form, which should have been updated by the useEffect
+                    return form.getValues("content");
                   }}
+                  renderPreview={({ mdx }) => (
+                    <MDXLivePreview mdxSource={mdx} />
+                  )}
+                  className="min-h-[300px]"
                 />
               </FormControl>
-              <FormMessage />
+              <FormDescription>
+                Use Markdown to write your blog post. You can use the toolbar
+                for formatting and AI assistance.
+              </FormDescription>
+              <FormMessage />{" "}
+              {/* For displaying validation errors for the content field */}
             </FormItem>
           )}
         />
+        {/* The specific error message below content field is removed as FormMessage inside FormItem handles it now */}
+
         <FormField
           control={form.control}
           name="publishedAt"
@@ -477,16 +534,8 @@ const BlogForm: React.FC<BlogFormProps> = ({ mode, initialData }) => {
           )}
         />
         <Button type="submit" disabled={isLoading || isAiLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {mode === "create" ? "Creating..." : "Saving..."}
-            </>
-          ) : mode === "create" ? (
-            "Create Post"
-          ) : (
-            "Save Changes"
-          )}
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {mode === "create" ? "Create Post" : "Save Changes"}
         </Button>
       </form>
     </Form>

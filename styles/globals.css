@@ -149,3 +149,69 @@
 .react-mde .mde-text {
   min-height: 300px; /* Reinforce if needed, but prop is better */
 }
+
+/* Styles for MdEditor preview pane to match react-mde */
+.md-editor-preview-pane {
+  @apply p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-b-md;
+  min-height: 300px; /* Match editor height */
+  overflow-y: auto;
+}
+
+.md-editor-preview-pane h1,
+.md-editor-preview-pane h2,
+.md-editor-preview-pane h3,
+.md-editor-preview-pane h4,
+.md-editor-preview-pane h5,
+.md-editor-preview-pane h6 {
+  @apply mt-4 mb-2 font-semibold;
+}
+
+.md-editor-preview-pane h1 {
+  @apply text-3xl;
+}
+
+.md-editor-preview-pane h2 {
+  @apply text-2xl;
+}
+
+.md-editor-preview-pane h3 {
+  @apply text-xl;
+}
+
+.md-editor-preview-pane p {
+  @apply mb-4 leading-relaxed;
+}
+
+.md-editor-preview-pane ul,
+.md-editor-preview-pane ol {
+  @apply mb-4 ml-6 list-disc;
+}
+
+.md-editor-preview-pane ol {
+  @apply list-decimal;
+}
+
+.md-editor-preview-pane blockquote {
+  @apply p-2 my-4 border-l-4 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800;
+}
+
+.md-editor-preview-pane code {
+  @apply px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-sm;
+}
+
+.md-editor-preview-pane pre > code {
+  @apply block p-2 overflow-x-auto;
+}
+
+.md-editor-preview-pane table {
+  @apply w-full mb-4 border-collapse border border-gray-300 dark:border-gray-600;
+}
+
+.md-editor-preview-pane th,
+.md-editor-preview-pane td {
+  @apply p-2 border border-gray-300 dark:border-gray-600 text-left;
+}
+
+.md-editor-preview-pane img {
+  @apply max-w-full h-auto rounded my-4;
+}

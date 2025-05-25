@@ -1,12 +1,13 @@
 import mongoose, { Schema, Document } from "mongoose";
+import type { ProjectTechnology, ProjectTag } from "../types"; // Using specific types for conceptual alignment
 
 export interface IProject extends Document {
   title: string;
   slug: string;
   summary: string;
   content: string;
-  technologies: string[];
-  tags: string[];
+  technologies: string[]; // Schema stores array of strings (names or IDs)
+  tags: string[]; // Schema stores array of strings (names or IDs)
   images: string[];
   coverImage?: string;
   demoUrl?: string;

@@ -6,10 +6,13 @@ WORKDIR /app
 RUN apk add --no-cache make gcc g++ python3 linux-headers
 
 # Only copy package files first to leverage Docker caching
-COPY package*.json ./
+COPY package*.json pnpm-lock.yaml* ./
+
+# Install pnpm globally
+RUN npm install -g pnpm
 
 # Install dependencies
-RUN npm install --legacy-peer-deps
+RUN pnpm install
 
 # No need to copy files or build here since we're using volume mounting for development
 # COPY . .
@@ -18,4 +21,4 @@ RUN npm install --legacy-peer-deps
 EXPOSE 3000
 
 # Use development mode with watch
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "run", "dev"]

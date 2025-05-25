@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
-import type { BlogPostFull, BlogPostApiResponse } from "@/types";
+import type { BlogPostFull, GetBlogPostsResponse } from "@/types";
 import { MDXLivePreview } from "@/components/MDXLivePreview";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -62,15 +62,22 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
       return [];
     }
 
-    const response: { success: boolean; data?: { slug: string }[] } =
-      await res.json();
+    // Updated to use GetBlogPostsResponse and access response.data.posts
+    const response: GetBlogPostsResponse = await res.json();
 
-    if (!response.success || !response.data) {
-      console.error("API response was not successful or data is missing");
+    if (
+      response.status !== "success" ||
+      !response.data ||
+      !response.data.posts
+    ) {
+      console.error(
+        "API response was not successful or data.posts is missing:",
+        response.message
+      );
       return [];
     }
 
-    return response.data.map((post) => ({ slug: post.slug }));
+    return response.data.posts.map((post) => ({ slug: post.slug }));
   } catch (error) {
     console.error("Error generating static params:", error);
     return [];
@@ -143,11 +150,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             Tags
           </h2>
           <div className="flex flex-wrap gap-2">
-            {post.tags.map((tag: string) => (
+            {post.tags.map((tag) => (
               // Assuming tags are strings (IDs or names). If they are objects, adjust accordingly.
-              // If you have a page for tags, you can link them: <Link href={`/tags/${tag}`}>
-              <Badge key={tag} variant="secondary">
-                {tag}
+              // If you have a page for tags, you can link them: <Link href={`/tags/${tag.name}`}>
+              <Badge
+                key={typeof tag === "string" ? tag : tag._id}
+                variant="secondary"
+              >
+                {typeof tag === "string" ? tag : tag.name}
               </Badge>
               // </Link>
             ))}

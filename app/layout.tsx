@@ -4,6 +4,7 @@ import "@/styles/globals.css";
 import "@/styles/components.css";
 import "@/styles/utilities.css";
 import AuthProvider from "@/providers/AuthProvider";
+import { TanStackQueryProvider } from "@/providers/TanStackQueryProvider";
 import { SiteNavBar } from "@/components/nav/SiteNavBar";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -36,9 +37,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <SiteNavBar />
-          {children}
-          <Toaster />
+          <TanStackQueryProvider>
+            <SiteNavBar />
+            {children}
+            <Toaster />
+          </TanStackQueryProvider>
         </AuthProvider>
       </body>
     </html>

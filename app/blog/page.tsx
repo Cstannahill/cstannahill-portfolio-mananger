@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { format } from "date-fns";
-import type { BlogPostSummary, BlogPostsApiResponse } from "@/types";
+import type { BlogPostSummary, GetBlogPostsResponse } from "@/types";
 import {
   Card,
   CardContent,
@@ -17,7 +17,7 @@ async function getPublishedBlogPosts(): Promise<BlogPostSummary[]> {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const res = await fetch(`${baseUrl}/api/blog?status=published`, {
       // Assuming your API supports a status filter
-      cache: "no-store", // Or use revalidate tags for ISR
+      // cache: "no-store", // Removed to allow static generation
     });
 
     if (!res.ok) {
@@ -28,16 +28,16 @@ async function getPublishedBlogPosts(): Promise<BlogPostSummary[]> {
       return [];
     }
 
-    const jsonResponse: BlogPostsApiResponse = await res.json();
+    const jsonResponse: GetBlogPostsResponse = await res.json();
 
-    if (jsonResponse.status !== "success" || !jsonResponse.data) {
+    if (jsonResponse.status !== "success" || !jsonResponse.data?.posts) {
       console.error(
         "API response was not successful or data is missing:",
         jsonResponse.message
       );
       return [];
     }
-    return jsonResponse.data;
+    return jsonResponse.data.posts;
   } catch (error) {
     console.error("Network or other error fetching blog posts:", error);
     return [];

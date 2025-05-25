@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/authOptions"; // Updated import path
 import User from "@/models/User"; // Updated import to default
+import { encryptText, decryptText } from "@/lib/utils/encryption";
 import type { AiSettings } from "@/types";
 import { ApiResponseSuccess, ApiResponseError } from "@/lib/api/response";
 import { z } from "zod";
@@ -68,9 +69,37 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (!user) {
       return ApiResponseError("User not found", 404, "NOT_FOUND");
     }
+    // Decrypt any encrypted API keys in settings
+    const settings = user.aiSettings || ({} as AiSettings);
+    if (settings.providerSettings) {
+      for (const provider of Object.keys(settings.providerSettings) as Array<
+        keyof typeof settings.providerSettings
+      >) {
+        const prv = settings.providerSettings[provider];
+        if (
+          prv &&
+          typeof (prv as any).apiKey === "string" &&
+          (prv as any).apiKey
+        ) {
+          try {
+            (prv as any).apiKey = decryptText((prv as any).apiKey);
+          } catch (err) {
+            console.error(
+              `[API GET /api/settings/ai] Failed to decrypt API key for ${String(provider)}:`,
+              err
+            );
+            return ApiResponseError(
+              "Failed to decrypt stored API keys",
+              500,
+              "DECRYPTION_ERROR"
+            );
+          }
+        }
+      }
+    }
 
     return ApiResponseSuccess(
-      user.aiSettings || {},
+      settings,
       200,
       "AI settings retrieved successfully"
     );
@@ -106,12 +135,26 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
 
     const body = await req.json();
     const validatedSettings = aiSettingsSchema.parse(body);
+    // Encrypt API keys before saving
+    const settingsToSave: AiSettings = JSON.parse(
+      JSON.stringify(validatedSettings)
+    );
+    if (settingsToSave.providerSettings) {
+      for (const provider of Object.keys(
+        settingsToSave.providerSettings
+      ) as Array<keyof typeof settingsToSave.providerSettings>) {
+        const prv = settingsToSave.providerSettings[provider] as any;
+        if (prv && typeof prv.apiKey === "string" && prv.apiKey) {
+          prv.apiKey = encryptText(prv.apiKey);
+        }
+      }
+    }
 
     await connectToDatabase();
 
     const user = await User.findOneAndUpdate(
       { email: session.user.email },
-      { $set: { aiSettings: validatedSettings } },
+      { $set: { aiSettings: settingsToSave } },
       {
         new: true,
         upsert: true,
@@ -127,9 +170,32 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
         "NOT_FOUND"
       );
     }
-
+    // Decrypt API keys in returned settings to echo plaintext back to client
+    const returnedSettings = user.aiSettings as AiSettings;
+    if (returnedSettings.providerSettings) {
+      for (const provider of Object.keys(
+        returnedSettings.providerSettings
+      ) as Array<keyof typeof returnedSettings.providerSettings>) {
+        const prv = returnedSettings.providerSettings[provider] as any;
+        if (prv && typeof prv.apiKey === "string" && prv.apiKey) {
+          try {
+            prv.apiKey = decryptText(prv.apiKey);
+          } catch (err) {
+            console.error(
+              `[API PUT /api/settings/ai] Failed to decrypt API key for ${provider}:`,
+              err
+            );
+            return ApiResponseError(
+              "Failed to decrypt stored API keys",
+              500,
+              "DECRYPTION_ERROR"
+            );
+          }
+        }
+      }
+    }
     return ApiResponseSuccess(
-      user.aiSettings,
+      returnedSettings,
       200,
       "AI settings updated successfully"
     );

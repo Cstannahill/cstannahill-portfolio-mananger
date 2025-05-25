@@ -1,185 +1,88 @@
-# Project Context
-
-Copilot - Do not forget to update the project context after every action!
-Important RULE:
-
-- @nextjs Rule - Next.js 15+ Dynamic Routes Compliance: When generating Next.js dynamic route code, enforce these requirements:
-
-  - Always declare `params` prop as `Promise<{ [key]: type }>` type
-  - Use `async/await` syntax to resolve params - never synchronous access
-  - Apply correct TypeScript types: `[slug]` → `{ slug: string }`, `[...slug]` → `{ slug: string[] }`, `[[...slug]]` → `{ slug?: string[] }`
-  - Make page/layout components async functions when using params
-  - Include try/catch error handling for param resolution
-  - Apply Promise pattern to pages, layouts, and API route handlers consistently
-  - For client components, use React\'s `use()` hook instead of await
-  - Always destructure params after awaiting: `const { slug } = await params;`
-  - Generate proper generateStaticParams functions for static generation
+# Project Context: Portfolio Manager
 
 ## Overall State
 
-- **Architecture:**
-  - Next.js 15+ App Router.
-  - **Dynamic Route Compliance Audit:**
-    - `app/projects/[slug]/page.tsx`: Audited and updated.
-    - `app/dashboard/projects/[slug]/edit/page.tsx`: Audited and updated. **Refactored to correctly handle client-side data fetching and state management, resolving async Client Component errors.**
-    - `app/blog/[slug]/page.tsx`: **Audited and fixed. Updated to correctly handle Next.js 15+ dynamic route patterns with proper async params handling, fixed TypeScript errors related to function return types and API response structure.**
-- **Backend:**
-  - Mongoose models defined in `models/`.
-  - API endpoints for CRUD operations on projects, tags, technologies, and file uploads.
-    - `GET /api/projects/[slug]`, `PUT /api/projects/[slug]`, `DELETE /api/projects/[slug]`
-    - `GET /api/technologies`, `GET /api/tags`
-    - `POST /api/upload` (used by `ImageManager.tsx`).
-    - `GET /api/health`
-  - **Standardized API Responses: All API routes now use `ApiResponseSuccess` and `ApiResponseError` helpers from `lib/api/response.ts` for consistent JSON output.**
-    - `app/api/projects/route.ts` (GET, POST)
-    - `app/api/projects/[slug]/route.ts` (GET, PUT, DELETE)
-    - `app/api/tags/route.ts` (GET, POST)
-    - `app/api/technologies/route.ts` (GET, POST)
-    - `app/api/upload/route.ts` (POST)
-    - `app/api/health/route.ts` (GET)
-    - `app/api/blog/route.ts` (GET, POST)
-    - `app/api/blog/[slug]/route.ts` (GET, PUT, DELETE)
-  - Zod validation for API inputs.
-- **Frontend:**
-  - **Project Editing Functionality: Largely operational. Layout adjustments made to `ProjectForm` and `EditProjectPage` for better space utilization and header consistency.**
-  - **`MultiSelectAutocomplete.tsx` error handling improved, including correction of toast notification import.**
-  - **Project Dashboard (`app/dashboard/page.tsx`):**
-    - **`DashboardStats` component now fetches and displays the total project count from the `/api/projects` endpoint. Other stats (Blog Posts, Page Views, Visitors) remain placeholders.**
-    - **`RecentProjects` component now fetches and displays the 3 most recently updated projects from `/api/projects`, including their title, summary, status, and links to view/edit.**
-  - **Project List Page (`app/dashboard/projects/page.tsx`):**
-    - **Successfully updated to display `coverImage` or the first `images` array item for each project.**
-  - **Project Editing Form (`components/projects/ProjectForm.tsx`):**
-    - Handles both "create" and "edit" modes.
-    - Uses `react-hook-form` and Zod for client-side validation.
-    - **`content` field now uses `ReactMde` for rich MDX editing. The `generateMarkdownPreview` prop successfully renders `MDXLivePreview` directly within the "Preview" tab of `ReactMde`. This integration is working correctly, properly sized, and shows the correct live MDX preview, replacing the default Markdown preview and the previous separate `MDXLivePreview` pane.** Custom CSS in `styles/globals.css` styles the `ReactMde` toolbar.
-    - **`ImageManager` component integrated for image uploads, reordering, removal, and cover image selection. Buttons within `ImageManager` no longer cause unintended form submissions.**
-    - `MultiSelectCombobox` for `technologies` and `tags` (fetches data from APIs).
-    - `sonner` for toast notifications.
-    - **Integrated `useAiGenerator` hook for AI-assisted content generation (title, summary, content section). UI buttons added, and logic to update form fields with AI response is implemented and working. Error handling and loading states for AI operations are in place. Form elements are appropriately disabled during AI generation.**
-  - **Project Edit Page (`app/dashboard/projects/[slug]/edit/page.tsx`):**
-    - Fetches project data client-side.
-    - Integrates `ProjectForm` for editing.
-    - Delete functionality with confirmation dialog implemented.
-    - **Layout adjusted for full-width content.**
-  - **MDX Preview (`components/MDXLivePreview.tsx`):**
-    - **Fixed "Expected 'jsxDEV'" error** by explicitly passing `jsx-runtime` and `jsx-dev-runtime` to the `evaluate` function.
-    - **This component correctly renders full MDX with custom components and is now successfully integrated into `ReactMde`\'s preview tab, displaying correctly.**
-  - **Blog Management Frontend (Dashboard):**
-    - `app/dashboard/blog/page.tsx`: Created and updated to fetch and display blog post summaries. **Corrected client-side data fetching to align with the actual API response structure, resolving the issue where blog posts were fetched but not displayed.**
-    - `components/blog/BlogForm.tsx`: Created and underwent multiple refinements. **TypeScript errors related to `react-hook-form`, Zod schema (`BlogPostFormInput` vs `BlogPostFormOutput`), and `MultiSelectCombobox` prop usage have been resolved. The `tags` field in the Zod schema is now `optional()`, and related type handling in `defaultValues`, `form.reset`, `onSubmit`, and `MultiSelectCombobox` has been adjusted accordingly. Integrated `useAiGenerator` hook for AI-assisted content generation (title, excerpt, content section). UI buttons added, and logic to update form fields with AI response is implemented and working.**
-    - `components/ui/multi-select-combobox.tsx`: Created.
-    - `app/dashboard/blog/create/page.tsx`: Created, utilizes `BlogForm.tsx`.
-    - `app/dashboard/blog/[slug]/edit/page.tsx`: Created, utilizes `BlogForm.tsx`.
-  - **Public-facing Blog Pages:**
-    - `app/blog/page.tsx`: Created (public blog list page).
-    - `app/blog/[slug]/page.tsx`: **Created and fixed. Resolved all TypeScript errors related to function signatures, API response handling, and Next.js 15+ dynamic route compliance. Added proper generateStaticParams function for static generation.**
-  - **Known Issues in Edit Form:**
-    - Minor styling discrepancies in the `MDXLivePreview` pane (when rendered inside `ReactMde`) compared to the final rendered output (can be addressed with a shared CSS module or refined global styles).
-- **Layout & Navigation:**
-  - **Redundant `Header` in dashboard layout removed. `SiteNavBar` is now the sole top navigation.**
-  - **`ProjectForm` now uses full width of its container.**
-  - **Dashboard Sidebar (`components/dashboard/Sidebar.tsx`): The "Settings" link now correctly points to `/dashboard/settings/ai`.**
-- **Content/Integration, Testing, DevOps:** Stable as per previous updates.
-- **AI Assistant Feature**:
-  - Types for AI settings (`AI_PROVIDER`, `AiModel`, `AiSettings`) are defined in `types/ai-settings.ts`.
-  - Types for AI generation request/response (`AiGenerateRequest`, `AiGenerateResponse`) are defined in `types/ai-generate.ts`.
-  - All AI related types are exported via `types/index.ts`.
-  - `AiSettingsForm.tsx` component created for users to input AI preferences.
-  - AI settings page (`app/dashboard/settings/ai/page.tsx`) created to host the form.
-    - Loads existing AI settings for the user via `/api/settings/ai` (GET).
-    - Saves AI settings for the user via `/api/settings/ai` (PUT).
-    - Dynamically fetches available AI models based on the selected provider by calling `/api/ai/models` (GET).
-  - User model (`models/User.ts`) updated to include an `aiSettings` field.
-  - API route (`app/api/settings/ai/route.ts`) created for GET and PUT operations on user AI settings, with Zod validation. **The Zod schema in this route has been updated to correctly validate provider-specific settings (Ollama URL, API keys for OpenAI, Anthropic, Vertex AI). The database connection call has been corrected to use `connectToDatabase`. The usage of `ApiResponseSuccess` and `ApiResponseError` helper functions has been corrected to align with their definitions, resolving previous TypeScript errors.**
-  - API route (`app/api/ai/models/route.ts`) created to provide a list of mock AI models based on the selected provider.
-  - New API route (`app/api/ai/generate/route.ts`) created for handling AI content generation requests.
-    - **Authenticates the user and retrieves their saved AI settings.**
-    - **Accepts a `taskIdentifier` and `taskContext` in the POST request body.**
-    - **Implemented actual SDK calls for Ollama, OpenAI, Anthropic, and Vertex AI, replacing mock functions. This includes API key handling and prompt construction. Added logging for Vertex AI authentication method to clarify reliance on Application Default Credentials (ADC) or `GOOGLE_APPLICATION_CREDENTIALS` environment variable.**
-    - **Returns the generated content (as a string) or an error message, along with debug information. Response handling adjusted to manually construct JSON to ensure type compatibility.**
-  - **Client-side hook `lib/hooks/useAiGenerator.ts` created to interact with the `/api/ai/generate` endpoint. Includes loading and error states. The hook now correctly expects a string as `data` in the `AiGenerateResponse`.**
+### Implemented Features
+
+- Core project and blog post CRUD functionality.
+- User authentication with NextAuth.js.
+- MongoDB integration for data persistence.
+- Basic UI for managing projects and blog posts.
+- AI integration for content generation (OpenAI, Ollama, Azure OpenAI).
+- AI model management UI.
+- TanStack Query for server state management.
+- Shadcn/ui components for the UI.
+- Dockerization setup.
+- **Login/Logout Button**: Added a conditional Login/Logout button to the main dashboard header (`components/dashboard/Header.tsx`).
+- **AI Chat Sidebar (`ChatSidebar.tsx`)**:
+  - Fully implemented with API connection, localStorage history, and enhanced UI/UX (loading, errors, timestamps, copy, clear, side-by-side input).
+  - Connected to `/api/ai/generate` backend API.
+  - Implemented chat history persistence using `localStorage` (`portfolioManagerChatHistory` key).
+  - Added a "Clear Chat" button.
+  - AI messages now show loading indicators while waiting for a response.
+  - Error messages from the API or AI are displayed within the AI message bubble.
+  - Timestamps are displayed for each message.
+  - A "Copy Message" button is available on AI messages.
+  - Improved overall UI/UX with icons, better styling, empty state, and auto-scrolling.
+  - Sends `taskIdentifier: "general_chat_conversation"` and conversation history to the backend.
+- **Custom MDX Component Insertion (`MdEditor.tsx`)**:
+  - `types/custom-mdx-components.ts` created with component definitions.
+  - Dropdown menu for component insertion added to `MdEditor.tsx` toolbar.
+  - Snippet insertion logic implemented.
+  - Props aligned with `types/md-editor.ts`.
+  - **Resolved Import/Type Issues**: Placeholder `MdxContent` and `ScrollArea` components created, and import paths in `MdEditor.tsx` corrected. `TextareaProps` import removed as it was not essential.
+
+### Working Components
+
+- Project creation, editing, and deletion forms.
+- Blog post creation, editing, and deletion forms.
+- User login and registration.
+- AI settings page for configuring providers and models.
+- AI generation for project descriptions and blog content.
+- **Inline AI Prompt Enhancements (BlogForm)**:
+  - `BlogForm.tsx`'s `handleAiGenerate` function updated to collect `title`, `excerpt`, and `content` values.
+  - Implemented fallback logic for `taskContextInput` based on `taskIdentifier` ("generate_blog_title", "generate_blog_excerpt", "generate_blog_content_section"):
+    - For title: uses existing title, then excerpt, then content.
+    - For excerpt: uses existing excerpt, then title, then content.
+    - For content section: uses existing content, then title, then excerpt.
+    - If all relevant fields are empty, `taskContextInput` remains empty, signaling the backend to generate random content.
+  - Added a dedicated "Generate Content Section" button next to the "Content" label in `BlogForm.tsx` for the `MdEditor`.
+- **MdEditor MDX Preview**: The new `MdEditor` component now correctly displays live MDX previews, matching the legacy `react-mde` preview experience. **This is now fully functional and visually aligned.**
+- **Dashboard Header**: `components/dashboard/Header.tsx` now displays a "Login" button if the user is not authenticated, and a user avatar dropdown with a "Sign out" option if authenticated.
+
+### Completed Integrations
+
+- NextAuth.js with credentials provider.
+- MongoDB with Mongoose.
+- OpenAI API.
+- Ollama API.
+- Azure OpenAI API.
+- TanStack Query.
+
+### Key Fixes Implemented
+
+- Resolved TanStack Query v5 build error in `s:/Code/portfolio-manager/app/dashboard/settings/ai/page.tsx` by replacing `onSuccess` with `useEffect`.
+- Fixed Next.js prerendering error in `s:/Code/portfolio-manager/providers/TanStackQueryProvider.tsx` by dynamically importing `ReactQueryDevtools`.
+- **OpenAI Error Resolution**: Addressed a 404 error for the OpenAI model `openai-gpt-4-turbo` by modifying `callOpenAIAPI` in `s:/Code/portfolio-manager/app/api/ai/generate/route.ts` to remove any "openai-" prefix from the `selectedModelId` before making the API call.
+- **Ollama Error Resolution**: Fixed Ollama connectivity issues for Dockerized environments by updating `callOllamaAPI` in `s:/Code/portfolio-manager/app/api/ai/generate/route.ts` to replace `localhost` or `127.0.0.1` with `host.docker.internal` in the Ollama instance URL when the `NEXT_PUBLIC_IS_DOCKERIZED` environment variable is true.
+- **Added New OpenAI Model**: Included `gpt-4o-mini` in the list of available OpenAI models in `s:/Code/portfolio-manager/app/api/ai/models/route.ts`. The model identifier `gpt-4o-mini` was confirmed via web search.
+- **Docker Configuration Update**: Added `NEXT_PUBLIC_IS_DOCKERIZED=true` to the `portfolio-manager` service in `docker-compose.yml` to enable correct Ollama host resolution in Dockerized environments.
+- **.gitignore Update**: Added `package-lock.json` and `npm-shrinkwrap.json` to `.gitignore` due to the use of `pnpm`.
+- **Ollama Model List Update**: Updated the list of available Ollama models in `s:/Code/portfolio-manager/app/api/ai/models/route.ts`. This included an initial update with 10 models, followed by the addition of `ollama-phi4`, `ollama-phi4-reasoning`, and `ollama-llama4` as per user requests. An erroneous empty object was also removed from the list. The capabilities for `ollama-llama4` were updated to include vision, coding, and reasoning, and its input types were updated to include images, based on user-provided information.
+- **Ollama Model Research**: Conducted a web search to compare capabilities of newly added Ollama models, confirming their relevance for coding and text generation tasks.
+- **`MdEditor.tsx` Preview Styling**:
+  - Added a CSS class `md-editor-preview-pane` to the `TabsContent` component for the preview tab in `s:/Code/portfolio-manager/components/shared/MdEditor.tsx`.
+  - Added CSS rules to `s:/Code/portfolio-manager/styles/globals.css` for the `md-editor-preview-pane` class. These styles aim to visually align the `MdEditor.tsx` preview with the legacy `react-mde` preview, including adjustments for padding, background color, borders, typography for headings, paragraphs, lists, blockquotes, code blocks, tables, and images.
 
 ## Immediate Next Steps
 
-- **Run `npm run build` to check for any remaining build errors.**
-- **API Key Management & Security:**
-  - Further refine how API keys are stored (e.g., consider encryption if stored in DB, or recommend environment variables for production). Ensure Vertex AI authentication (e.g. `GOOGLE_APPLICATION_CREDENTIALS` or API key environment variable `GOOGLE_API_KEY`) is properly handled and documented for production environments.
-- **Testing & Error Handling:**
-  - Write unit and integration tests for all new AI-related functionalities, especially the `/api/ai/generate` route with different providers and the `useAiGenerator` hook.
-  - Test the AI integration in `BlogForm.tsx` and `ProjectForm.tsx` thoroughly with different providers and scenarios.
-  - Continue comprehensive error handling audit for the new AI generation logic, both backend and frontend.
-- **Markdown Linting / Formatting:**
-  - Implement a markdown linter or formatter for the markdown editors throughout the application.
-  - This should include syntax highlighting, linting, and formatting for MDX content.
-  - Ensure that the linter/formatter is applied before saving the content to the database.
-- Implement delete functionality for blog posts on `s:\\Code\\portfolio-manager\\app\\dashboard\\blog\\page.tsx`.
-- **Verify that the blog list page (`app/dashboard/blog/page.tsx`) now correctly displays blog posts and the "Create New Post" button is functional.**
-- Test the fixed blog post page (`app/blog/[slug]/page.tsx`) to ensure proper functionality with actual data.
-- Implement project search and filtering on the dashboard.
-- Add project status management to model and UI.
-- Add project duplication/cloning functionality.
-- Review `generateStaticParams` for `app/projects/[slug]/page.tsx`.
-- **Styling:** Create and apply a CSS module or refine global styles to ensure `MDXLivePreview` (when rendered within `ReactMde`) exactly matches the styling of the final rendered MDX content on the public-facing project pages. <-- Low priority>
-
-## Data Model Reference (MongoDB & MDX Frontmatter)
-
-Reflects fields in Mongoose schemas (`models/`) and frontmatter properties defined in `docs/from-portfolio/content-reference.md`.
-
-- **Project:**
-  - **DB & API:** `_id`, `title` (string, required), `summary` (string, required), `slug` (string, unique, required), `content` (MDX string), `publishedAt` (Date, required), `technologies` (array of ObjectId refs to Technology), `tags` (array of ObjectId refs to Tag), `images` (array of strings - paths), `coverImage` (string - path), `demoUrl` (string), `sourceUrl` (string), `status` (enum: draft, published, archived), `featured` (boolean), `analytics` (object), `createdAt` (Date), `updatedAt` (Date).
-  - **MDX Frontmatter (subset, see `content-reference.md` for full list & UI mapping):** `title`, `publishedAt` (or `date`), `summary` (or `excerpt`), `technologies` (array of strings), `tags` (array of strings), `images` (array of strings - paths), `coverImage` (string - path), `demoUrl`, `sourceUrl`, `slug`.
-  - **`ProjectForm.tsx` Zod Schema (Client-side):** `title`, `summary`, `slug`, `content`, `publishedAt`, `technologies` (array of strings, optional), `tags` (array of strings, optional), `images` (array of strings), `coverImage` (string), `demoUrl`, `sourceUrl`, `status`, `featured`.
-- **BlogPost:**
-  - **DB & API:** `_id`, `title` (string, required), `excerpt` (string, required), `slug` (string, unique, required), `content` (MDX string), `publishedAt` (Date, required), `tags` (array of ObjectId refs to Tag), `coverImage` (string - path), `images` (array of strings - paths), `createdAt` (Date), `updatedAt` (Date).
-  - **MDX Frontmatter (subset, see `content-reference.md`):** `title`, `publishedAt` (or `date`), `excerpt` (or `summary`), `tags` (array of strings), `coverImage`, `images`, `slug`.
-  - **`BlogForm.tsx` Zod Schema (Client-side):** `title`, `slug`, `excerpt` (optional), `content`, `publishedAt` (Date), `tags` (array of strings, optional), `coverImage` (URL string, optional).
-- **Tag:** `_id`, `name` (string, unique, required), `description` (string), `color` (string), `icon` (string), `createdAt` (Date), `updatedAt` (Date).
-- **Technology:** `_id`, `name` (string, unique, required), `description` (string), `color` (string), `icon` (string), `createdAt` (Date), `updatedAt` (Date).
-- **User:** (Details managed by NextAuth.js, standard fields like `name`, `email`, `image`, `role`).
-
-## UI/UX Standards
-
-- **Forms:** All forms must be accessible (ARIA attributes, keyboard navigable), include inline validation feedback, and provide clear error summaries.
-- **Navigation:** Utilize shadcn/ui components like `Button`, `DropdownMenu`, `Avatar` for interactive elements. Ensure consistent styling and behavior across the application.
-- **MDX Content:** All MDX content should support the custom components detailed in `docs/from-portfolio/content-reference.md` (e.g., `Callout`, `ProjectTechStack`, `ProjectTimeline`, etc.).
-- **Image Handling:** Image uploads should support drag-and-drop, previews, reordering, removal, and cover image selection.
-- **Responsive Design:** Employ grid layouts for project/blog index pages, card-based layouts for summaries, and ensure a functional mobile menu and overall responsiveness.
-- **Theming:** Support dark mode with dynamic color tokens. Ensure WCAG AA compliance for color contrast and accessibility.
-
-## Integration & Content Sync
-
-- **MDX Structure:** MDX export/import processes must preserve frontmatter, custom component usage, and the established file structure for `/content/projects/` and `/content/blog/` as per `docs/from-portfolio/content-reference.md`.
-- **Image Paths & Guidelines:** All images must reside in `/public/images/` with subdirectories for projects and blog posts. Use absolute paths in content. Adhere to recommended formats and sizes.
-- **Portfolio Site Sync:** The system supports API-based and file-based synchronization for integration with the main portfolio site. Real-time updates via webhooks or build triggers are planned.
-
-## Testing & Validation Strategy
-
-- **Frontmatter Validation:** All MDX content must be validated for required frontmatter fields (`title`, `publishedAt`/`date`, `summary`/`excerpt`) before being processed or published.
-- **Automated Testing:**
-  - Unit tests for individual components, utility functions, and MDX components.
-  - Integration tests for API endpoints, data flow, and interactions between components.
-- **Manual Testing:**
-  - Responsive design testing across various screen sizes and devices.
-  - Accessibility testing (keyboard navigation, screen reader compatibility, ARIA compliance).
-  - Cross-browser compatibility testing.
-
-## Known Issues / Challenges
-
-- `app/dashboard/projects/[slug]/edit/page.tsx` uses client-side data fetching. For a true 404 on initial load if the project doesn\'t exist, it might benefit from a Server Component wrapper that can use `notFound()` directly.
-- Some dashboard statistics and advanced search/filtering functionalities are currently placeholders or partially implemented.
-
-## Documentation Structure (`/docs`)
-
-- **`/docs/architecture/`:** Diagrams and explanations of the system architecture.
-- **`/docs/deployment/`:** Guides and notes on deploying the application.
-- **`/docs/from-portfolio/`:** Contains `content-reference.md` detailing MDX frontmatter, custom components, and UI mapping for content sourced from or synced with the main portfolio.
-- **`/docs/schemas/`:** JSON schemas or descriptions for data models and API payloads.
-- **`/docs/user-guides/`:** How-to guides for users or developers.
-- **`docs/tech-stack.md`:** Detailed breakdown of technologies used.
-- **`docs/progress.md`:** Tracks development progress and major milestones.
-- **`docs/documentation-guide.md`:** Guidelines for contributing to documentation.
-- **`docs/github-integration.md`:** Information on GitHub integration.
-- **`docs/husky-explanation.md`:** Explanation of Husky pre-commit hooks.
-- **`docs/technical-requirements.md`:** Original technical requirements for the project.
-
-This context file will be updated after each significant action or change to the project.
+1.  **Test MDX Component Insertion**: Thoroughly test the functionality in `MdEditor.tsx`.
+2.  **Test AI Content Insertion in `MdEditor.tsx`**: Verify the example "AI Summary" button and its interaction with `onAIClick`.
+3.  **Backend AI Logic for Chat**: Ensure `/api/ai/generate/route.ts` correctly handles `"general_chat_conversation"` and conversation history. Consider streaming responses.
+4.  **Testing AI Chat Functionality**: Test chat history, UI features, and response quality in `ChatSidebar.tsx`.
+5.  **Implement Inline AI Prompt Enhancements (ProjectForm)**: Decide if `MdEditor` is ready for `ProjectForm.tsx` or if `handleAiGenerate` logic needs to be replicated similar to `BlogForm.tsx`.
+6.  **Build Verification**: Run `pnpm run build` after testing current features.
+7.  **Review UI for AI Model Selection** (if applicable).
+8.  **Code Review & Refinement**: Review `ChatSidebar.tsx`, `MdEditor.tsx`, and related API routes.
+9.  **Documentation**: Update for new features.
+10. **MdEditor Rollout**: Plan integration of enhanced `MdEditor.tsx` across all forms once stable.

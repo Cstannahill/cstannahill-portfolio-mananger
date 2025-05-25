@@ -1,11 +1,12 @@
 import mongoose, { Schema, Document } from "mongoose";
+import type { BlogTag } from "../types"; // Using BlogTag for conceptual alignment, though schema stores strings
 
 export interface IBlogPost extends Document {
   title: string;
   slug: string;
   excerpt: string; // Also supports 'summary' in frontmatter
   content: string;
-  tags: string[];
+  tags: string[]; // Schema stores array of strings (names or IDs)
   images: string[];
   coverImage?: string;
   author: string;

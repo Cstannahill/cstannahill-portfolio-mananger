@@ -77,8 +77,7 @@ const ASForm: React.FC<AiSettingsFormProps> = ({
       providerSettings: {
         ...settings.providerSettings,
         [provider]: {
-          // @ts-ignore TODO: Fix this type error related to providerSettings structure
-          ...settings.providerSettings?.[provider],
+          ...(settings.providerSettings?.[provider] || {}), // Ensure the provider object exists
           [key]: value,
         },
       },
@@ -88,11 +87,18 @@ const ASForm: React.FC<AiSettingsFormProps> = ({
   const renderProviderSpecificFields = (): JSX.Element | null => {
     if (!settings.selectedProvider) return null;
 
+    // Helper to get typed provider settings
+    const getTypedProviderSettings = <T,>(
+      providerKey: AI_PROVIDER
+    ): Partial<T> | undefined => {
+      return settings.providerSettings?.[providerKey] as Partial<T> | undefined;
+    };
+
     switch (settings.selectedProvider) {
       case AI_PROVIDER.OLLAMA:
-        const ollamaSettings = settings.providerSettings?.[
+        const ollamaSettings = getTypedProviderSettings<OllamaProviderSettings>(
           AI_PROVIDER.OLLAMA
-        ] as Partial<OllamaProviderSettings> | undefined;
+        );
         return (
           <div className="space-y-2 pt-4 border-t mt-4">
             <h4 className="text-md font-semibold">Ollama Settings</h4>
@@ -116,9 +122,9 @@ const ASForm: React.FC<AiSettingsFormProps> = ({
           </div>
         );
       case AI_PROVIDER.OPENAI:
-        const openAiSettings = settings.providerSettings?.[
+        const openAiSettings = getTypedProviderSettings<OpenAiProviderSettings>(
           AI_PROVIDER.OPENAI
-        ] as Partial<OpenAiProviderSettings> | undefined;
+        );
         return (
           <div className="space-y-2 pt-4 border-t mt-4">
             <h4 className="text-md font-semibold">OpenAI Settings</h4>
@@ -154,9 +160,10 @@ const ASForm: React.FC<AiSettingsFormProps> = ({
           </div>
         );
       case AI_PROVIDER.ANTHROPIC:
-        const anthropicSettings = settings.providerSettings?.[
-          AI_PROVIDER.ANTHROPIC
-        ] as Partial<AnthropicProviderSettings> | undefined;
+        const anthropicSettings =
+          getTypedProviderSettings<AnthropicProviderSettings>(
+            AI_PROVIDER.ANTHROPIC
+          );
         return (
           <div className="space-y-2 pt-4 border-t mt-4">
             <h4 className="text-md font-semibold">Anthropic Settings</h4>
@@ -178,9 +185,10 @@ const ASForm: React.FC<AiSettingsFormProps> = ({
           </div>
         );
       case AI_PROVIDER.VERTEX_AI:
-        const vertexSettings = settings.providerSettings?.[
-          AI_PROVIDER.VERTEX_AI
-        ] as Partial<VertexAiProviderSettings> | undefined;
+        const vertexSettings =
+          getTypedProviderSettings<VertexAiProviderSettings>(
+            AI_PROVIDER.VERTEX_AI
+          );
         return (
           <div className="space-y-2 pt-4 border-t mt-4">
             <h4 className="text-md font-semibold">
@@ -191,7 +199,7 @@ const ASForm: React.FC<AiSettingsFormProps> = ({
             </Label>
             <Input // Consider if this should be a textarea for JSON key
               id="vertex-api-key"
-              type="password" // Or text if it's a path
+              type="password" // Or text if it\'s a path
               placeholder="Path to service_account.json or API Key"
               value={vertexSettings?.apiKey || ""}
               onChange={(e) =>

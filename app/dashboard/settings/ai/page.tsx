@@ -5,10 +5,14 @@ import AiSettingsForm from "@/components/settings/AiSettingsForm";
 import type { AiSettings, AiModel, AI_PROVIDER } from "@/types";
 import { toast } from "sonner";
 import PageHeader from "@/components/ui/page-header";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { aiSettingsKeys, aiModelsKeys } from "@/lib/queryKeys";
 
+// Helper function to fetch AI models for a given provider
 async function fetchModelsForProvider(
-  provider: AI_PROVIDER
+  provider: AI_PROVIDER | undefined
 ): Promise<AiModel[]> {
+  if (!provider) return []; // Return empty if no provider
   try {
     const response = await fetch(`/api/ai/models?provider=${provider}`);
     if (!response.ok) {
@@ -27,10 +31,11 @@ async function fetchModelsForProvider(
         ? error.message
         : `An unknown error occurred while fetching models for ${provider}.`
     );
-    return []; // Return empty array on error
+    return [];
   }
 }
 
+// Helper function to load AI settings
 async function loadAiSettings(): Promise<Partial<AiSettings>> {
   try {
     const response = await fetch("/api/settings/ai");
@@ -45,17 +50,15 @@ async function loadAiSettings(): Promise<Partial<AiSettings>> {
     return result.data as Partial<AiSettings>;
   } catch (error) {
     console.error("Error in loadAiSettings:", error);
-    toast.error(
-      error instanceof Error
-        ? error.message
-        : "An unknown error occurred while loading settings."
-    );
-    // Return empty object or default settings on error to prevent app crash
-    return {};
+    // toast.error is handled by react-query's onError
+    throw error; // Re-throw for react-query to handle
   }
 }
 
-async function saveAiSettings(settings: AiSettings): Promise<AiSettings> {
+// Helper function to save AI settings
+async function saveAiSettingsMutationFn(
+  settings: AiSettings
+): Promise<AiSettings> {
   try {
     const response = await fetch("/api/settings/ai", {
       method: "PUT",
@@ -74,116 +77,127 @@ async function saveAiSettings(settings: AiSettings): Promise<AiSettings> {
     const result = await response.json();
     return result.data as AiSettings;
   } catch (error) {
-    console.error("Error in saveAiSettings:", error);
-    toast.error(
-      error instanceof Error
-        ? error.message
-        : "An unknown error occurred while saving settings."
-    );
-    throw error; // Re-throw to be caught by handleSubmit
+    console.error("Error in saveAiSettingsMutationFn:", error);
+    // toast.error is handled by react-query's onError
+    throw error; // Re-throw for react-query to handle
   }
 }
 
 /**
  * @page AISettingsPage
- * @description Page for managing AI assistant settings.
+ * @description Page for managing AI assistant settings using TanStack Query.
  */
 export default function AISettingsPage(): JSX.Element {
-  const [settings, setSettings] = useState<Partial<AiSettings>>({});
-  const [availableModels, setAvailableModels] = useState<AiModel[]>([]);
-  const [loading, setLoading] = useState<boolean>(true); // Initialize to true for initial load
-  const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchInitialData = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const loadedSettings = await loadAiSettings();
-      setSettings(loadedSettings);
-      if (loadedSettings.selectedProvider) {
-        const models = await fetchModelsForProvider(
-          loadedSettings.selectedProvider
-        );
-        setAvailableModels(models);
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "An unknown error occurred during initial data load."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Local state for form inputs that might change before saving
+  const [currentSettings, setCurrentSettings] = useState<Partial<AiSettings>>(
+    {}
+  );
+  const [formError, setFormError] = useState<string | null>(null);
 
+  // Fetch AI Settings
+  const {
+    data: loadedSettings,
+    isLoading: isLoadingSettings,
+    error: settingsError,
+  } = useQuery<Partial<AiSettings>, Error>({
+    queryKey: aiSettingsKeys(),
+    queryFn: loadAiSettings,
+  });
+
+  // Effect to update currentSettings when settings are loaded or change
   useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
+    if (loadedSettings) {
+      setCurrentSettings(loadedSettings);
+    }
+  }, [loadedSettings]);
 
+  const {
+    data: availableModelsData,
+    isLoading: isLoadingModels,
+    error: modelsError,
+  } = useQuery<AiModel[], Error>({
+    queryKey: aiModelsKeys(currentSettings.selectedProvider),
+    queryFn: () => fetchModelsForProvider(currentSettings.selectedProvider),
+    enabled: !!currentSettings.selectedProvider,
+  });
+
+  // Mutation for Saving AI Settings
+  const { mutate: saveSettings, isPending: isSavingSettings } = useMutation<
+    AiSettings,
+    Error,
+    AiSettings
+  >({
+    mutationFn: saveAiSettingsMutationFn,
+    onSuccess: (savedData) => {
+      queryClient.setQueryData(aiSettingsKeys(), savedData); // Update cache
+      setCurrentSettings(savedData); // Update local form state
+      toast.success("AI settings saved successfully!");
+      setFormError(null);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to save AI settings: ${error.message}`);
+      setFormError(error.message);
+    },
+  });
+
+  // Update currentSettings and trigger model refetch when form fields change
   const handleSettingsChange = useCallback(
-    async (newPartialSettings: Partial<AiSettings>): Promise<void> => {
-      const previousProvider = settings.selectedProvider;
-      const newSettings = { ...settings, ...newPartialSettings };
-      setSettings(newSettings);
-      setError(null);
+    (newPartialSettings: Partial<AiSettings>): void => {
+      const previousProvider = currentSettings.selectedProvider;
+      const updatedSettings = { ...currentSettings, ...newPartialSettings };
+      setCurrentSettings(updatedSettings);
+      setFormError(null);
 
+      // If provider changed, models will refetch due to queryKey change
       if (
         newPartialSettings.selectedProvider &&
         newPartialSettings.selectedProvider !== previousProvider
       ) {
-        setLoading(true);
-        setAvailableModels([]); // Clear previous models immediately
-        try {
-          const models = await fetchModelsForProvider(
-            newPartialSettings.selectedProvider
-          );
-          setAvailableModels(models);
-        } catch (err) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "An unknown error occurred while fetching models."
-          );
-        } finally {
-          setLoading(false);
-        }
+        // No explicit refetch needed, query key change handles it.
       }
     },
-    [settings]
+    [currentSettings]
   );
 
-  const handleSubmit = async (): Promise<void> => {
-    if (!settings.selectedProvider || !settings.selectedModelId) {
+  const handleSubmit = (): void => {
+    if (!currentSettings.selectedProvider || !currentSettings.selectedModelId) {
       const errorMessage = "Please select an AI provider and a model.";
-      setError(errorMessage);
+      setFormError(errorMessage);
       toast.error(errorMessage);
       return;
     }
-    setSaving(true);
-    setError(null);
-    try {
-      const fullSettings: AiSettings = {
-        selectedProvider: settings.selectedProvider,
-        selectedModelId: settings.selectedModelId,
-        customPrompt: settings.customPrompt || "",
-      };
-      await saveAiSettings(fullSettings);
-      toast.success("AI settings saved successfully!");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "An unknown error occurred while saving settings."
-      );
-    } finally {
-      setSaving(false);
+
+    const providerSettingsToSave = currentSettings.providerSettings || {};
+
+    const settingsToSave: AiSettings = {
+      selectedProvider: currentSettings.selectedProvider,
+      selectedModelId: currentSettings.selectedModelId,
+      customPrompt: currentSettings.customPrompt || "",
+      providerSettings: providerSettingsToSave,
+    };
+
+    if (currentSettings.selectedProvider && currentSettings.providerSettings) {
+      const providerKey =
+        currentSettings.selectedProvider as keyof AiSettings["providerSettings"];
+      if (currentSettings.providerSettings[providerKey]) {
+        if (!settingsToSave.providerSettings) {
+          settingsToSave.providerSettings = {};
+        }
+        settingsToSave.providerSettings[providerKey] =
+          currentSettings.providerSettings[providerKey];
+      }
     }
+
+    saveSettings(settingsToSave);
   };
 
-  // Initial loading state before any settings are fetched
-  if (loading && Object.keys(settings).length === 0 && !error) {
+  const isLoading =
+    isLoadingSettings ||
+    (!!currentSettings.selectedProvider && isLoadingModels);
+
+  if (isLoading && !loadedSettings && !settingsError) {
     return (
       <div className="container mx-auto px-4 py-8">
         <PageHeader
@@ -197,22 +211,44 @@ export default function AISettingsPage(): JSX.Element {
     );
   }
 
+  if (settingsError) {
+    // Error is already toasted by useQuery's onError
+    // Display a general error message or a retry mechanism if desired
+  }
+
+  const modelsForForm: AiModel[] =
+    (availableModelsData as AiModel[] | undefined) || [];
+
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader
         title="AI Assistant Settings"
         description="Configure your AI assistant."
       />
-      <div className="mt-8 flex justify-center">
-        <AiSettingsForm
-          settings={settings}
-          availableModels={availableModels}
-          onSettingsChange={handleSettingsChange}
-          onSubmit={handleSubmit}
-          loading={saving || loading} // Corrected: Form is loading if saving or if data/models are being fetched
-          error={error}
-        />
-      </div>
+      {settingsError && !isLoadingSettings && (
+        <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">
+          <p>Error loading AI settings: {settingsError.message}</p>
+          <p>
+            Please try refreshing the page. If the problem persists, contact
+            support.
+          </p>
+        </div>
+      )}
+      {modelsError &&
+        !!currentSettings.selectedProvider &&
+        !isLoadingModels && (
+          <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">
+            <p>Error loading AI models: {modelsError.message}</p>
+          </div>
+        )}
+      <AiSettingsForm
+        settings={currentSettings}
+        availableModels={modelsForForm}
+        onSettingsChange={handleSettingsChange}
+        onSubmit={handleSubmit}
+        loading={isLoading || isSavingSettings} // Combined loading state for AiSettingsForm
+        error={formError || modelsError?.message || null}
+      />
     </div>
   );
 }

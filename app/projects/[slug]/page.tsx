@@ -7,7 +7,7 @@ import {
   ProjectMetrics,
   ProjectChallengeCard,
 } from "@/components/projects";
-import type { Technology, Project } from "@/types/project";
+import type { Project } from "@/types/project";
 import { notFound } from "next/navigation"; // Added notFound
 
 /**

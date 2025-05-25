@@ -3,14 +3,15 @@
  * @module types/project
  */
 
-import type { Technology } from "./technology";
-export type { Technology }; // Added to re-export the imported Technology type
+import type { ProjectTechnology } from "./technology"; // Updated to ProjectTechnology
+import type { ProjectTag } from "./tag"; // Added import for ProjectTag
+export type { ProjectTechnology }; // Re-export ProjectTechnology
 
 /**
  * Props for ProjectTechStack component.
  */
 export interface ProjectTechStackProps {
-  technologies: Technology[];
+  technologies: ProjectTechnology[]; // Updated to ProjectTechnology
 }
 
 /**
@@ -97,15 +98,50 @@ export interface Project {
   slug: string;
   summary: string;
   content: string;
-  technologies: string[];
-  tags: string[];
+  technologies: (string | ProjectTechnology)[]; // Can be string IDs or populated objects
+  tags: (string | ProjectTag)[]; // Updated to use ProjectTag, can be string IDs or populated objects
   images: string[];
   coverImage?: string;
   demoUrl?: string;
   sourceUrl?: string;
   publishedAt: string; // ISO string for consistency
   updatedAt: string; // ISO string for consistency
+  createdAt: string; // Added createdAt field
   featured: boolean;
   status: "draft" | "published" | "archived";
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * Represents the data structure for creating or updating a project.
+ * This is typically used in forms and API request payloads.
+ * @interface ProjectFormInput
+ */
+export interface ProjectFormInput
+  extends Omit<
+    Partial<Project>,
+    "_id" | "slug" | "createdAt" | "updatedAt" | "technologies" | "tags"
+  > {
+  title: string;
+  summary: string;
+  content: string;
+  technologies?: string[]; // Array of technology IDs
+  tags?: string[]; // Array of tag IDs
+  // Omitting _id, slug, createdAt, updatedAt as they are typically server-generated or handled differently
+}
+
+/**
+ * Represents the filters that can be applied when fetching a list of projects.
+ * @interface ProjectFilters
+ */
+export interface ProjectFilters {
+  page?: number;
+  limit?: number;
+  status?: "draft" | "published" | "archived";
+  featured?: boolean;
+  tag?: string; // Filter by a single tag ID or slug
+  technology?: string; // Filter by a single technology ID or slug
+  sortBy?: "createdAt" | "updatedAt" | "publishedAt" | "title";
+  sortOrder?: "asc" | "desc";
+  search?: string; // For full-text search on title, summary, content
 }

@@ -28,6 +28,9 @@ import { MDXLivePreview } from "@/components/MDXLivePreview";
 import { ImageManager } from "@/components/projects/ImageManager";
 import { useAiGenerator } from "@/lib/hooks/useAiGenerator";
 import type { AiGenerateRequest } from "@/types/ai-generate";
+import { formatMDX } from "@/lib/utils/markdown";
+import dynamic from "next/dynamic";
+import MdEditor from "@/components/shared/MdEditor";
 
 // Dynamically import ReactMde to avoid SSR issues
 const ReactMde = React.lazy(() => import("react-mde"));
@@ -88,6 +91,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
   projectId,
   projectSlug,
 }) => {
+  const useMdEditor = process.env.NEXT_PUBLIC_FEATURE_MD_EDITOR === "true";
   const router = useRouter();
   const [allTechnologies, setAllTechnologies] = useState<MultiSelectOption[]>(
     []
@@ -121,39 +125,20 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     getValues, // Added getValues to read form state
   } = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
-    defaultValues:
-      mode === "edit" && initialData
-        ? {
-            title: initialData.title,
-            summary: initialData.summary,
-            content: initialData.content,
-            technologies: initialData.technologies || [], // Add technologies
-            tags: initialData.tags || [], // Add tags
-            images: initialData.images || [], // Add images
-            coverImage: initialData.coverImage || "", // Add coverImage
-            demoUrl: initialData.demoUrl || "",
-            sourceUrl: initialData.sourceUrl || "",
-            publishedAt: initialData.publishedAt
-              ? new Date(initialData.publishedAt)
-              : new Date(),
-            status: initialData.status || "draft",
-            featured: initialData.featured || false,
-            // Ensure all fields from ProjectFormData are mapped here if they exist in Project
-          }
-        : {
-            title: "",
-            summary: "",
-            content: "",
-            technologies: [], // Default to empty array
-            tags: [], // Default to empty array
-            images: [], // Default to empty array
-            coverImage: "", // Default to empty string
-            demoUrl: "",
-            sourceUrl: "",
-            publishedAt: new Date(),
-            status: "draft",
-            featured: false,
-          },
+    defaultValues: {
+      title: "",
+      summary: "",
+      content: "",
+      technologies: [],
+      tags: [],
+      images: [],
+      coverImage: "",
+      demoUrl: "",
+      sourceUrl: "",
+      publishedAt: new Date(),
+      status: "draft",
+      featured: false,
+    },
   });
 
   useEffect(() => {
@@ -215,14 +200,21 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
 
   useEffect(() => {
     if (mode === "edit" && initialData) {
+      // Map only string IDs for technologies and tags
+      const techIds = (initialData.technologies ?? []).filter(
+        (t): t is string => typeof t === "string"
+      );
+      const tagIds = (initialData.tags ?? []).filter(
+        (t): t is string => typeof t === "string"
+      );
       reset({
         title: initialData.title,
         summary: initialData.summary,
         content: initialData.content,
-        technologies: initialData.technologies || [], // Add technologies
-        tags: initialData.tags || [], // Add tags
-        images: initialData.images || [], // Add images
-        coverImage: initialData.coverImage || "", // Add coverImage
+        technologies: techIds,
+        tags: tagIds,
+        images: initialData.images || [],
+        coverImage: initialData.coverImage || "",
         demoUrl: initialData.demoUrl || "",
         sourceUrl: initialData.sourceUrl || "",
         publishedAt: initialData.publishedAt
@@ -230,7 +222,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
           : new Date(),
         status: initialData.status || "draft",
         featured: initialData.featured || false,
-        // Ensure all fields from ProjectFormData are mapped here if they exist in Project
       });
     }
   }, [initialData, mode, reset]);
@@ -310,6 +301,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
 
   const onSubmit = async (data: ProjectFormData): Promise<void> => {
     try {
+      // Format MDX content before save
+      data.content = await formatMDX(data.content);
+
       let response: Response;
       if (mode === "edit") {
         if (!projectSlug) {
@@ -435,7 +429,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
         )}
       </div>
 
-      {/* Content Field with MDX Editor and Preview */}
+      {/* Content Field with unified MdEditor or legacy ReactMde */}
       <div>
         <div className="flex justify-between items-center mb-1">
           <Label htmlFor="content">Content (MDX)</Label>
@@ -458,49 +452,100 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
         <Controller
           name="content"
           control={control}
-          render={({ field }) => (
-            <Suspense
-              fallback={
-                <Textarea
-                  rows={15}
-                  className="min-h-[300px] h-full w-full"
-                  placeholder="Loading editor..."
-                  disabled={anyAiLoading}
+          render={({ field }) => {
+            if (useMdEditor) {
+              return (
+                <MdEditor
+                  value={field.value}
+                  onChange={field.onChange}
+                  initialValue={
+                    mode === "edit" ? initialData?.content : undefined
+                  }
+                  mode={mode}
+                  toolbarConfig={{
+                    generateSummary: false,
+                    generateTitle: false,
+                    generateSections: { content: true },
+                    customItems: [],
+                  }}
+                  onFormat={async (raw) => await formatMDX(raw)}
+                  onAIClick={async (taskId) => {
+                    await handleAiGenerate(taskId as AiTaskIdentifier);
+                    return getValues("content");
+                  }}
+                  onReset={mode === "edit" ? () => reset() : undefined}
+                  onDelete={
+                    mode === "edit" && projectSlug
+                      ? async () => {
+                          const resp = await fetch(
+                            `/api/projects/${projectSlug}`,
+                            {
+                              method: "DELETE",
+                            }
+                          );
+                          if (resp.ok) {
+                            toast.success("Project deleted successfully");
+                            router.push("/dashboard/projects");
+                          } else {
+                            toast.error("Failed to delete project");
+                          }
+                        }
+                      : undefined
+                  }
+                  renderPreview={({ mdx }) => (
+                    <MDXLivePreview mdxSource={mdx} />
+                  )}
+                  className="min-h-[300px]"
+                  editorRef={undefined}
                 />
-              }
-            >
-              <ReactMde
-                value={field.value}
-                onChange={field.onChange}
-                selectedTab={selectedTab}
-                onTabChange={setSelectedTab}
-                minEditorHeight={300}
-                childProps={{
-                  writeButton: {
-                    className: "bg-[#1d1916] text-white hover:bg-[#1d1916]/80",
-                    tabIndex: -1,
-                  },
-                  previewButton: {
-                    className: "bg-[#f2f2f0] text-[#1d1916]",
-                    tabIndex: -1,
-                  },
-                  textArea: {
-                    id: "content",
-                    placeholder: `Project details in MDX format...\nSupports custom components like <Callout type="info">...`,
-                    className: "font-mono text-sm w-full",
-                    disabled: isSubmitting || anyAiLoading,
-                  },
-                }}
-                generateMarkdownPreview={async (markdown) => {
-                  return (
-                    <MDXLivePreview
-                      mdxSource={markdown || watchedContent || ""}
-                    />
-                  );
-                }}
-              />
-            </Suspense>
-          )}
+              );
+            }
+            // Legacy ReactMde integration
+            return (
+              <Suspense
+                fallback={
+                  <Textarea
+                    rows={15}
+                    className="min-h-[300px] h-full w-full"
+                    placeholder="Loading editor..."
+                    disabled={anyAiLoading}
+                  />
+                }
+              >
+                <ReactMde
+                  value={field.value}
+                  onChange={field.onChange}
+                  selectedTab={selectedTab}
+                  onTabChange={setSelectedTab}
+                  minEditorHeight={300}
+                  childProps={{
+                    writeButton: {
+                      className:
+                        "bg-[#1d1916] text-white hover:bg-[#1d1916]/80",
+                      tabIndex: -1,
+                    },
+                    previewButton: {
+                      className: "bg-[#f2f2f0] text-[#1d1916]",
+                      tabIndex: -1,
+                    },
+                    textArea: {
+                      id: "content",
+                      placeholder: `Project details in MDX format...\nSupports custom components like <Callout type=\"info\">...`,
+                      className: "font-mono text-sm w-full",
+                      disabled: isSubmitting || anyAiLoading,
+                    },
+                  }}
+                  generateMarkdownPreview={async (markdown) => {
+                    return (
+                      <MDXLivePreview
+                        mdxSource={markdown || watchedContent || ""}
+                      />
+                    );
+                  }}
+                />
+              </Suspense>
+            );
+          }}
         />
         {errors.content && (
           <p className="text-sm text-red-500 mt-1">{errors.content.message}</p>
